@@ -77,7 +77,7 @@ export async function GET() {
     include: {
       lease: {
         include: {
-          lot: { include: { property: { select: { name: true } } } },
+          lot: { include: { property: { select: { name: true, id: true } } } },
           tenant: { select: { firstName: true, lastName: true } },
         },
       },

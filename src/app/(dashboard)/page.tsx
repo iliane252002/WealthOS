@@ -35,7 +35,7 @@ interface DashboardStats {
     dueDate: string;
     amount: number;
     lease: {
-      lot: { label: string; property: { name: string } };
+      lot: { id: string; label: string; property: { id: string; name: string } };
       tenant: { firstName: string; lastName: string };
     };
   }>;
@@ -173,7 +173,7 @@ export default function DashboardPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {s.latePaymentsCount > 0 && (
-              <Link href="/notifications" className="flex items-center justify-between p-3 bg-white rounded-lg border border-amber-100 hover:border-amber-300 transition-colors group">
+              <Link href="/properties" className="flex items-center justify-between p-3 bg-white rounded-lg border border-amber-100 hover:border-amber-300 transition-colors group">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-red-500" />
                   <span className="text-sm text-slate-700">
@@ -281,7 +281,7 @@ export default function DashboardPage() {
         <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-slate-500">{t("dashboard.latePayments")}</h3>
-            <Link href="/notifications" className="text-sm text-blue-600 hover:underline">
+            <Link href="/properties" className="text-sm text-blue-600 hover:underline">
               {t("dashboard.viewAll")}
             </Link>
           </div>
@@ -301,8 +301,15 @@ export default function DashboardPage() {
                     const dueDate = new Date(event.dueDate);
                     const now = new Date();
                     const daysLate = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+                    const lotUrl = event.lease?.lot?.property?.id && event.lease?.lot?.id
+                      ? `/properties/${event.lease.lot.property.id}/lots/${event.lease.lot.id}`
+                      : null;
                     return (
-                      <tr key={event.id} className="border-b border-slate-50">
+                      <tr
+                        key={event.id}
+                        className={`border-b border-slate-50 ${lotUrl ? "cursor-pointer hover:bg-slate-50 transition-colors" : ""}`}
+                        onClick={() => lotUrl && (window.location.href = lotUrl)}
+                      >
                         <td className="py-2.5">
                           <span className="font-medium text-slate-900">
                             {event.lease?.lot?.property?.name}
@@ -317,10 +324,10 @@ export default function DashboardPage() {
                         <td className="py-2.5">
                           <span className="text-red-600 font-medium">{event.dueDate}</span>
                           {daysLate > 0 && (
-                            <span className="text-xs text-red-400 ml-1">({daysLate} {t("dashboard.delayDays")})</span>
+                            <span className="text-xs text-red-400 ml-1">({daysLate}j)</span>
                           )}
                         </td>
-                        <td className="py-2.5 text-right font-medium text-slate-900">
+                        <td className="py-2.5 text-right font-medium text-red-600">
                           {formatCurrency(event.amount)}
                         </td>
                       </tr>

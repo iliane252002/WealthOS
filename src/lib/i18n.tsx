@@ -479,6 +479,12 @@ const translations = {
   "propertyDetail.utilities": { en: "Utilities", fr: "Compteurs" },
   "propertyDetail.legal": { en: "Legal & Compliance", fr: "Juridique & Conformité" },
   "propertyDetail.financialView": { en: "Financial Overview", fr: "Vue financière" },
+  "propertyDetail.edit": { en: "Edit", fr: "Modifier" },
+
+  // ── Property Edit ──
+  "propertyEdit.title": { en: "Edit Property", fr: "Modifier le bien" },
+  "propertyEdit.save": { en: "Save Changes", fr: "Enregistrer" },
+  "propertyEdit.saving": { en: "Saving...", fr: "Enregistrement..." },
 } as const;
 
 export type TranslationKey = keyof typeof translations;

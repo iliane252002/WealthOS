@@ -47,7 +47,7 @@ export async function POST() {
         type: "RENT_LATE",
         title: "Late Rent Payment",
         message: `Rent of ${event.amount} EUR is late for ${event.lease.lot.property.name} - ${event.lease.lot.label} (${event.lease.tenant.firstName} ${event.lease.tenant.lastName})`,
-        link: `/properties/${event.lease.lot.property.id}`,
+        link: `/properties/${event.lease.lot.property.id}/lots/${event.lease.lot.id}`,
       },
     });
 

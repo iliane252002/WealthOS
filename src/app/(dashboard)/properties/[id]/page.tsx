@@ -7,7 +7,7 @@ import {
   ArrowLeft, Building2, MapPin, Plus, Users, FileText, Wrench,
   Home, DoorOpen, Trash2, Layers, ChevronDown, ChevronRight,
   AlertCircle, Zap, Droplets, Shield, DollarSign, TrendingUp,
-  Upload, Eye, X,
+  Upload, Eye, X, Pencil,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef, useCallback } from "react";
@@ -106,8 +106,8 @@ function SmartGuidance({ property }: { property: PropertyDetail }) {
   const { t } = useI18n();
   const hints: { text: string; link?: string }[] = [];
 
-  if (!property.type) hints.push({ text: t("guidance.noType") });
-  if (!property.currentValue) hints.push({ text: t("guidance.noValue") });
+  if (!property.type) hints.push({ text: t("guidance.noType"), link: `/properties/${property.id}/edit` });
+  if (!property.currentValue) hints.push({ text: t("guidance.noValue"), link: `/properties/${property.id}/edit` });
   if (!property.lots || property.lots.length === 0) hints.push({ text: t("guidance.noLots") });
 
   (property.lots || []).forEach((lot) => {
@@ -131,7 +131,9 @@ function SmartGuidance({ property }: { property: PropertyDetail }) {
         {hints.map((hint, i) => (
           <li key={i} className="text-sm text-amber-700 flex items-center gap-2">
             <span className="w-1.5 h-1.5 bg-amber-400 rounded-full shrink-0" />
-            {hint.text}
+            {hint.link ? (
+              <Link href={hint.link} className="underline hover:text-amber-900">{hint.text} →</Link>
+            ) : hint.text}
           </li>
         ))}
       </ul>
@@ -308,6 +310,13 @@ export default function PropertyDetailPage() {
           {totalMonthlyRent > 0 && (
             <Badge color="emerald">{formatCurrency(totalMonthlyRent)}/mo</Badge>
           )}
+          <Link
+            href={`/properties/${propertyId}/edit`}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+          >
+            <Pencil size={14} />
+            {t("propertyDetail.edit")}
+          </Link>
         </div>
       </div>
 

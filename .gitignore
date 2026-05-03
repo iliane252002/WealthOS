@@ -48,3 +48,5 @@ dev.db
 
 # uploads
 /uploads
+
+.vercel

@@ -1,9 +1,10 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bell, Check, CheckCheck } from "lucide-react";
+import { Bell, Check, CheckCheck, ExternalLink } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
+import Link from "next/link";
 
 interface Notification {
   id: string;
@@ -74,33 +75,53 @@ export default function NotificationsPage() {
         </div>
       ) : (
         <div className="space-y-2">
-          {notifications.map((notif) => (
-            <div
-              key={notif.id}
-              className={`bg-white rounded-xl border shadow-sm p-4 flex items-start gap-3 transition-colors ${
-                notif.isRead ? "border-slate-200" : "border-blue-200 bg-blue-50/30"
-              }`}
-            >
-              <div className={`p-2 rounded-lg shrink-0 ${typeIcons[notif.type] || typeIcons.GENERAL}`}>
-                <Bell size={16} />
+          {notifications.map((notif) => {
+            const cardContent = (
+              <>
+                <div className={`p-2 rounded-lg shrink-0 ${typeIcons[notif.type] || typeIcons.GENERAL}`}>
+                  <Bell size={16} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className={`text-sm ${notif.isRead ? "text-slate-600" : "font-medium text-slate-900"}`}>
+                      {notif.title}
+                    </p>
+                    {notif.link && <ExternalLink size={12} className="text-slate-400 shrink-0" />}
+                  </div>
+                  <p className="text-sm text-slate-500 mt-0.5">{notif.message}</p>
+                  <p className="text-xs text-slate-400 mt-1">{formatDate(notif.createdAt)}</p>
+                </div>
+                {!notif.isRead && (
+                  <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); markReadMutation.mutate(notif.id); }}
+                    className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors shrink-0"
+                    title="Mark as read"
+                  >
+                    <Check size={16} />
+                  </button>
+                )}
+              </>
+            );
+
+            const baseClass = `bg-white rounded-xl border shadow-sm p-4 flex items-start gap-3 transition-colors ${
+              notif.isRead ? "border-slate-200" : "border-blue-200 bg-blue-50/30"
+            }`;
+
+            return notif.link ? (
+              <Link
+                key={notif.id}
+                href={notif.link}
+                className={`${baseClass} hover:border-blue-300 hover:shadow-md cursor-pointer`}
+                onClick={() => { if (!notif.isRead) markReadMutation.mutate(notif.id); }}
+              >
+                {cardContent}
+              </Link>
+            ) : (
+              <div key={notif.id} className={baseClass}>
+                {cardContent}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className={`text-sm ${notif.isRead ? "text-slate-600" : "font-medium text-slate-900"}`}>
-                  {notif.title}
-                </p>
-                <p className="text-sm text-slate-500 mt-0.5">{notif.message}</p>
-                <p className="text-xs text-slate-400 mt-1">{formatDate(notif.createdAt)}</p>
-              </div>
-              {!notif.isRead && (
-                <button
-                  onClick={() => markReadMutation.mutate(notif.id)}
-                  className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors shrink-0"
-                >
-                  <Check size={16} />
-                </button>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
