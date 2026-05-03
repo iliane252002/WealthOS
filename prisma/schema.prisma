@@ -20,16 +20,17 @@ model User {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  properties      Property[]
-  tenants         Tenant[]
-  investments     Investment[]
-  notifications   Notification[]
-  documents       Document[]
-  works           Work[]
-  expenses        Expense[]
-  accounts        Account[]
-  sessions        Session[]
-  enabledModules  UserModule[]
+  properties       Property[]
+  tenants          Tenant[]
+  investments      Investment[]
+  notifications    Notification[]
+  documents        Document[]
+  works            Work[]
+  expenses         Expense[]
+  accounts         Account[]
+  sessions         Session[]
+  enabledModules   UserModule[]
+  bankConnections  BankConnection[]
 }
 
 model Account {
@@ -335,6 +336,46 @@ model Investment {
 
   @@index([userId])
   @@index([assetType])
+}
+
+// ─── BANKING (GoCardless Open Banking) ─────────────
+
+model BankConnection {
+  id              String   @id @default(cuid())
+  userId          String
+  institutionId   String   // GoCardless institution ID (e.g. "BNP_PARIBAS_FR")
+  institutionName String
+  requisitionId   String   @unique // GoCardless requisition ID
+  accountIds      String   // JSON array of account IDs
+  status          String   @default("PENDING") // PENDING | ACTIVE | EXPIRED | ERROR
+  lastSyncAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions BankTransaction[]
+
+  @@index([userId])
+}
+
+model BankTransaction {
+  id               String   @id @default(cuid())
+  connectionId     String
+  externalId       String   // GoCardless transaction ID
+  bookingDate      String   // YYYY-MM-DD
+  amount           Float
+  currency         String   @default("EUR")
+  debtorName       String?  // Who sent the money
+  remittanceInfo   String?  // Payment reference/description
+  matchStatus      String   @default("UNMATCHED") // UNMATCHED | MATCHED | IGNORED
+  rentEventId      String?  // Linked rent event if matched
+  createdAt        DateTime @default(now())
+
+  connection BankConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, externalId])
+  @@index([connectionId])
+  @@index([matchStatus])
 }
 
 // ─── NOTIFICATIONS ──────────────────────────────────
