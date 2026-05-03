@@ -12,6 +12,7 @@ export const createPropertySchema = z.object({
   postalCode: z.string().optional(),
   country: z.string().optional(),
   ownershipType: z.enum(ownershipTypes).optional(),
+  sciName: z.string().optional(), // SCI name when ownershipType === "sci"
   acquisitionDate: z.string().optional(),
   acquisitionPrice: z.number().positive().optional(),
   currentValue: z.number().positive().optional(),

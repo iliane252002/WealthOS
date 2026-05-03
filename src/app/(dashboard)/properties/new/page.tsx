@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createPropertySchema, type CreatePropertyInput, propertyTypes, ownershipTypes } from "@/lib/validators/property";
 import { useMutation } from "@tanstack/react-query";
@@ -19,6 +19,7 @@ export default function NewPropertyPage() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm<CreatePropertyInput>({
     resolver: zodResolver(createPropertySchema),
@@ -28,6 +29,8 @@ export default function NewPropertyPage() {
     },
   });
 
+  const ownershipType = useWatch({ control, name: "ownershipType" });
+
   const mutation = useMutation({
     mutationFn: async (data: CreatePropertyInput) => {
       // Clean NaN values from optional number fields (empty inputs → NaN with valueAsNumber)
@@ -35,6 +38,7 @@ export default function NewPropertyPage() {
       if (cleaned.acquisitionPrice !== undefined && isNaN(cleaned.acquisitionPrice)) delete cleaned.acquisitionPrice;
       if (cleaned.currentValue !== undefined && isNaN(cleaned.currentValue)) delete cleaned.currentValue;
       if (cleaned.surface !== undefined && isNaN(cleaned.surface)) delete cleaned.surface;
+      if (cleaned.ownershipType !== "sci") cleaned.sciName = undefined;
 
       const res = await fetch("/api/properties", {
         method: "POST",
@@ -132,11 +136,25 @@ export default function NewPropertyPage() {
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 >
                   {ownershipTypes.map((tp) => (
-                    <option key={tp} value={tp}>{tp === "personal" ? t("propertyNew.personal") : t("propertyNew.sci")}</option>
+                    <option key={tp} value={tp}>
+                      {tp === "personal" ? t("propertyNew.personal") : t("propertyNew.sci")}
+                    </option>
                   ))}
                 </select>
               </div>
             </div>
+
+            {/* SCI Name — only shown when ownershipType is "sci" */}
+            {ownershipType === "sci" && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.sciName")}</label>
+                <input
+                  {...register("sciName")}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder={t("propertyNew.sciNamePlaceholder")}
+                />
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>

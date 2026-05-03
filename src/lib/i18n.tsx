@@ -15,6 +15,7 @@ const translations = {
   "nav.timeline": { en: "Timeline", fr: "Chronologie" },
   "nav.notifications": { en: "Notifications", fr: "Notifications" },
   "nav.expenses": { en: "Expenses", fr: "Dépenses" },
+  "nav.accounting": { en: "Accounting", fr: "Comptabilité" },
   "nav.settings": { en: "Settings", fr: "Paramètres" },
 
   // ── Topbar ──
@@ -79,6 +80,8 @@ const translations = {
   "propertyNew.ownership": { en: "Ownership", fr: "Détention" },
   "propertyNew.personal": { en: "Personal", fr: "Personnel" },
   "propertyNew.sci": { en: "SCI", fr: "SCI" },
+  "propertyNew.sciName": { en: "SCI Name", fr: "Nom de la SCI" },
+  "propertyNew.sciNamePlaceholder": { en: "e.g. SCI Dupont Immobilier", fr: "ex. SCI Dupont Immobilier" },
   "propertyNew.address": { en: "ADDRESS", fr: "ADRESSE" },
   "propertyNew.streetAddress": { en: "Street Address", fr: "Adresse" },
   "propertyNew.addressPlaceholder": { en: "123 Rue de la Paix", fr: "123 Rue de la Paix" },
@@ -485,6 +488,33 @@ const translations = {
   "propertyEdit.title": { en: "Edit Property", fr: "Modifier le bien" },
   "propertyEdit.save": { en: "Save Changes", fr: "Enregistrer" },
   "propertyEdit.saving": { en: "Saving...", fr: "Enregistrement..." },
+
+  // ── Accounting (PCG) ──
+  "accounting.title": { en: "Accounting", fr: "Comptabilité" },
+  "accounting.subtitle": { en: "French PCG — SCI tracking", fr: "Plan Comptable Général — Suivi SCI" },
+  "accounting.year": { en: "Year", fr: "Année" },
+  "accounting.sci": { en: "SCI / Entity", fr: "SCI / Entité" },
+  "accounting.allScis": { en: "All entities", fr: "Toutes les entités" },
+  "accounting.personalProperties": { en: "Personal properties", fr: "Biens personnels" },
+  "accounting.incomeStatement": { en: "Income Statement", fr: "Compte de résultat" },
+  "accounting.revenues": { en: "Revenues", fr: "Produits" },
+  "accounting.expenses": { en: "Expenses", fr: "Charges" },
+  "accounting.netResult": { en: "Net result", fr: "Résultat net" },
+  "accounting.account": { en: "Account", fr: "Compte" },
+  "accounting.label": { en: "Label", fr: "Libellé" },
+  "accounting.amount": { en: "Amount", fr: "Montant" },
+  "accounting.ledger": { en: "General Ledger", fr: "Grand livre simplifié" },
+  "accounting.paymentTracking": { en: "Payment tracking", fr: "Suivi des paiements" },
+  "accounting.tenant": { en: "Tenant", fr: "Locataire" },
+  "accounting.property": { en: "Property / Lot", fr: "Bien / Lot" },
+  "accounting.totalExpected": { en: "Expected", fr: "Attendu" },
+  "accounting.totalReceived": { en: "Received", fr: "Perçu" },
+  "accounting.outstanding": { en: "Outstanding", fr: "Impayé" },
+  "accounting.collectionRate": { en: "Rate", fr: "Taux" },
+  "accounting.exportCsv": { en: "Export CSV", fr: "Exporter CSV" },
+  "accounting.noData": { en: "No data for this period", fr: "Aucune donnée pour cette période" },
+  "accounting.profit": { en: "Profit", fr: "Bénéfice" },
+  "accounting.loss": { en: "Loss", fr: "Déficit" },
 } as const;
 
 export type TranslationKey = keyof typeof translations;
