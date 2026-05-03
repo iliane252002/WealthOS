@@ -50,7 +50,7 @@ export default function NotificationsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">{t("notifications.title")}</h1>
         <button
-          onClick={() => markReadMutation.mutate()}
+          onClick={() => markReadMutation.mutate(undefined)}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
         >
           <CheckCheck size={16} />

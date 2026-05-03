@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createPropertySchema, type CreatePropertyInput, propertyTypes, ownershipTypes } from "@/lib/validators/property";
 import { useMutation } from "@tanstack/react-query";
-import { ArrowLeft, Building2, Info } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
@@ -13,12 +13,12 @@ import { useI18n } from "@/lib/i18n";
 export default function NewPropertyPage() {
   const router = useRouter();
   const [serverError, setServerError] = useState("");
+  const [showMore, setShowMore] = useState(false);
   const { t } = useI18n();
 
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors },
   } = useForm<CreatePropertyInput>({
     resolver: zodResolver(createPropertySchema),
@@ -28,14 +28,18 @@ export default function NewPropertyPage() {
     },
   });
 
-  const selectedType = watch("type");
-
   const mutation = useMutation({
     mutationFn: async (data: CreatePropertyInput) => {
+      // Clean NaN values from optional number fields (empty inputs → NaN with valueAsNumber)
+      const cleaned = { ...data };
+      if (cleaned.acquisitionPrice !== undefined && isNaN(cleaned.acquisitionPrice)) delete cleaned.acquisitionPrice;
+      if (cleaned.currentValue !== undefined && isNaN(cleaned.currentValue)) delete cleaned.currentValue;
+      if (cleaned.surface !== undefined && isNaN(cleaned.surface)) delete cleaned.surface;
+
       const res = await fetch("/api/properties", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(cleaned),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -58,7 +62,7 @@ export default function NewPropertyPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
         <Link href="/properties" className="p-2 rounded-lg hover:bg-slate-100 transition-colors">
           <ArrowLeft size={20} className="text-slate-600" />
@@ -72,134 +76,104 @@ export default function NewPropertyPage() {
 
       <form
         onSubmit={handleSubmit((data) => mutation.mutate(data))}
-        className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6"
+        className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-5"
       >
-        <div className="space-y-4">
-          <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider">{t("propertyNew.basicInfo")}</h2>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.propertyName")}</label>
-            <input
-              {...register("name")}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder={t("propertyNew.namePlaceholder")}
-            />
-            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.type")}</label>
-              <select
-                {...register("type")}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">{t("propertyNew.selectType")}</option>
-                {propertyTypes.map((tp) => (
-                  <option key={tp} value={tp}>{typeLabels[tp]}</option>
-                ))}
-              </select>
-              {errors.type && <p className="text-red-500 text-xs mt-1">{errors.type.message}</p>}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.ownership")}</label>
-              <select
-                {...register("ownershipType")}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {ownershipTypes.map((tp) => (
-                  <option key={tp} value={tp}>{tp === "personal" ? t("propertyNew.personal") : t("propertyNew.sci")}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {selectedType === "BUILDING" && (
-            <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <Info size={16} className="text-blue-600 mt-0.5 shrink-0" />
-              <p className="text-sm text-blue-700">{t("propertyNew.buildingNote")}</p>
-            </div>
-          )}
+        {/* REQUIRED: Name + Address only */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.propertyName")} *</label>
+          <input
+            {...register("name")}
+            className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+            placeholder={t("propertyNew.namePlaceholder")}
+            autoFocus
+          />
+          {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
         </div>
 
-        <div className="space-y-4">
-          <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider">{t("propertyNew.address")}</h2>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.streetAddress")}</label>
-            <input
-              {...register("address")}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder={t("propertyNew.addressPlaceholder")}
-            />
-            {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address.message}</p>}
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.city")}</label>
-              <input
-                {...register("city")}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder={t("propertyNew.cityPlaceholder")}
-              />
-              {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city.message}</p>}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.postalCode")}</label>
-              <input
-                {...register("postalCode")}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder={t("propertyNew.postalCodePlaceholder")}
-              />
-              {errors.postalCode && <p className="text-red-500 text-xs mt-1">{errors.postalCode.message}</p>}
-            </div>
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.streetAddress")} *</label>
+          <input
+            {...register("address")}
+            className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+            placeholder={t("propertyNew.addressPlaceholder")}
+          />
+          {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address.message}</p>}
         </div>
 
-        <div className="space-y-4">
-          <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider">{t("propertyNew.financial")}</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.purchasePrice")}</label>
-              <input
-                {...register("acquisitionPrice", { valueAsNumber: true })}
-                type="number"
-                step="0.01"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="250000"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.currentValue")}</label>
-              <input
-                {...register("currentValue", { valueAsNumber: true })}
-                type="number"
-                step="0.01"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="280000"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.surface")}</label>
-            <input
-              {...register("surface", { valueAsNumber: true })}
-              type="number"
-              step="0.01"
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="65"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.acquisitionDate")}</label>
-            <input
-              {...register("acquisitionDate")}
-              type="date"
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
+        {/* Optional details — collapsed by default */}
+        <button
+          type="button"
+          onClick={() => setShowMore(!showMore)}
+          className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
+        >
+          {showMore ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          {showMore ? t("propertyNew.lessDetails") : t("propertyNew.moreDetails")}
+        </button>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+        {showMore && (
+          <div className="space-y-4 pt-2 border-t border-slate-100">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.type")}</label>
+                <select
+                  {...register("type")}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                >
+                  <option value="">{t("propertyNew.selectType")}</option>
+                  {propertyTypes.map((tp) => (
+                    <option key={tp} value={tp}>{typeLabels[tp]}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.ownership")}</label>
+                <select
+                  {...register("ownershipType")}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                >
+                  {ownershipTypes.map((tp) => (
+                    <option key={tp} value={tp}>{tp === "personal" ? t("propertyNew.personal") : t("propertyNew.sci")}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.city")}</label>
+                <input {...register("city")} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" placeholder={t("propertyNew.cityPlaceholder")} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.postalCode")}</label>
+                <input {...register("postalCode")} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" placeholder={t("propertyNew.postalCodePlaceholder")} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.purchasePrice")}</label>
+                <input {...register("acquisitionPrice", { valueAsNumber: true })} type="number" step="0.01" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.currentValue")}</label>
+                <input {...register("currentValue", { valueAsNumber: true })} type="number" step="0.01" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.surface")}</label>
+                <input {...register("surface", { valueAsNumber: true })} type="number" step="0.01" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.acquisitionDate")}</label>
+                <input {...register("acquisitionDate")} type="date" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-3 pt-4">
           <Link
             href="/properties"
             className="px-4 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium"

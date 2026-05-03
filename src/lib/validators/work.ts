@@ -9,10 +9,10 @@ export const createWorkSchema = z.object({
   description: z.string().optional(),
   contractor: z.string().optional(),
   cost: z.number().positive().optional(),
-  status: z.enum(workStatuses).default("PLANNED"),
+  status: z.enum(workStatuses),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
-  isTaxDeductible: z.boolean().default(false),
+  isTaxDeductible: z.boolean(),
   taxCategory: z.string().optional(),
 });
 

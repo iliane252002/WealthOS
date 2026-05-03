@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
 
 export type Locale = "en" | "fr";
 
@@ -14,6 +14,7 @@ const translations = {
   "nav.investments": { en: "Investments", fr: "Investissements" },
   "nav.timeline": { en: "Timeline", fr: "Chronologie" },
   "nav.notifications": { en: "Notifications", fr: "Notifications" },
+  "nav.expenses": { en: "Expenses", fr: "Dépenses" },
   "nav.settings": { en: "Settings", fr: "Paramètres" },
 
   // ── Topbar ──
@@ -166,6 +167,8 @@ const translations = {
   "investments.account": { en: "Account", fr: "Compte" },
   "investments.accountPlaceholder": { en: "PEA, CTO...", fr: "PEA, CTO..." },
   "investments.adding": { en: "Adding...", fr: "Ajout..." },
+  "investments.searchStock": { en: "Search stocks, ETFs, crypto...", fr: "Rechercher actions, ETFs, crypto..." },
+  "investments.searchPlaceholder": { en: "Type to search (e.g. LVMH, Apple, Bitcoin...)", fr: "Tapez pour chercher (ex. LVMH, Apple, Bitcoin...)" },
   "investments.noInvestments": { en: "No investments yet", fr: "Aucun investissement" },
   "investments.noInvestmentsDesc": { en: "Start tracking your financial portfolio.", fr: "Commencez à suivre votre portefeuille financier." },
   "investments.asset": { en: "Asset", fr: "Actif" },
@@ -280,6 +283,202 @@ const translations = {
   "common.edit": { en: "Edit", fr: "Modifier" },
   "common.save": { en: "Enregistrer", fr: "Enregistrer" },
   "common.na": { en: "N/A", fr: "N/A" },
+
+  // ── Property New (simplified) ──
+  "propertyNew.moreDetails": { en: "Add more details", fr: "Ajouter plus de détails" },
+  "propertyNew.lessDetails": { en: "Show less", fr: "Afficher moins" },
+
+  // ── Modules ──
+  "modules.title": { en: "Modules", fr: "Modules" },
+  "modules.subtitle": { en: "Activate features you need", fr: "Activez les fonctionnalités dont vous avez besoin" },
+  "modules.EXPENSES": { en: "Expense Tracking", fr: "Suivi des dépenses" },
+  "modules.EXPENSES_desc": { en: "Track charges, insurance, taxes per property", fr: "Suivez les charges, assurances, taxes par bien" },
+  "modules.WORKS": { en: "Work Tracking", fr: "Suivi des travaux" },
+  "modules.WORKS_desc": { en: "Track renovations and maintenance", fr: "Suivez les rénovations et l'entretien" },
+  "modules.UTILITIES": { en: "Utility Tracking", fr: "Suivi des compteurs" },
+  "modules.UTILITIES_desc": { en: "Water, electricity, gas consumption", fr: "Eau, électricité, gaz" },
+  "modules.LEGAL": { en: "Legal & Compliance", fr: "Juridique & Conformité" },
+  "modules.LEGAL_desc": { en: "Diagnostics, insurance, lease compliance", fr: "Diagnostics, assurances, conformité baux" },
+  "modules.ADVANCED_DOCS": { en: "Advanced Documents", fr: "Documents avancés" },
+  "modules.ADVANCED_DOCS_desc": { en: "Enhanced document management", fr: "Gestion documentaire avancée" },
+
+  // ── Expenses ──
+  "expenses.title": { en: "Expenses & Charges", fr: "Dépenses & Charges" },
+  "expenses.addExpense": { en: "Add Expense", fr: "Ajouter une dépense" },
+  "expenses.cancel": { en: "Cancel", fr: "Annuler" },
+  "expenses.totalExpenses": { en: "Total Expenses", fr: "Total des dépenses" },
+  "expenses.recurring": { en: "Recurring", fr: "Récurrentes" },
+  "expenses.oneTime": { en: "One-time", fr: "Ponctuelles" },
+  "expenses.expenseTitle": { en: "Title", fr: "Titre" },
+  "expenses.amount": { en: "Amount", fr: "Montant" },
+  "expenses.category": { en: "Category", fr: "Catégorie" },
+  "expenses.date": { en: "Date", fr: "Date" },
+  "expenses.property": { en: "Property", fr: "Bien" },
+  "expenses.selectProperty": { en: "Select property", fr: "Sélectionner un bien" },
+  "expenses.none": { en: "None", fr: "Aucun" },
+  "expenses.isRecurring": { en: "Recurring expense", fr: "Dépense récurrente" },
+  "expenses.frequency": { en: "Frequency", fr: "Fréquence" },
+  "expenses.creating": { en: "Creating...", fr: "Création..." },
+  "expenses.createExpense": { en: "Create Expense", fr: "Créer la dépense" },
+  "expenses.noExpenses": { en: "No expenses tracked", fr: "Aucune dépense suivie" },
+  "expenses.noExpensesDesc": { en: "Track your property charges and expenses.", fr: "Suivez les charges et dépenses de vos biens." },
+  "expenses.actions": { en: "Actions", fr: "Actions" },
+  "expenses.INSURANCE": { en: "Insurance", fr: "Assurance" },
+  "expenses.TAX": { en: "Tax", fr: "Impôt" },
+  "expenses.MAINTENANCE": { en: "Maintenance", fr: "Entretien" },
+  "expenses.MANAGEMENT": { en: "Management", fr: "Gestion" },
+  "expenses.CONDO_FEES": { en: "Condo Fees", fr: "Charges copropriété" },
+  "expenses.LOAN": { en: "Loan", fr: "Emprunt" },
+  "expenses.UTILITY": { en: "Utility", fr: "Énergie" },
+  "expenses.OTHER": { en: "Other", fr: "Autre" },
+  "expenses.MONTHLY": { en: "Monthly", fr: "Mensuel" },
+  "expenses.QUARTERLY": { en: "Quarterly", fr: "Trimestriel" },
+  "expenses.YEARLY": { en: "Yearly", fr: "Annuel" },
+
+  // ── Compliance ──
+  "compliance.title": { en: "Legal & Compliance", fr: "Juridique & Conformité" },
+  "compliance.addItem": { en: "Add Item", fr: "Ajouter" },
+  "compliance.type": { en: "Type", fr: "Type" },
+  "compliance.status": { en: "Status", fr: "Statut" },
+  "compliance.date": { en: "Date", fr: "Date" },
+  "compliance.expiryDate": { en: "Expiry Date", fr: "Date d'expiration" },
+  "compliance.OK": { en: "OK", fr: "OK" },
+  "compliance.MISSING": { en: "Missing", fr: "Manquant" },
+  "compliance.EXPIRED": { en: "Expired", fr: "Expiré" },
+  "compliance.EXPIRING_SOON": { en: "Expiring Soon", fr: "Expire bientôt" },
+  "compliance.LEASE_SIGNED": { en: "Lease Signed", fr: "Bail signé" },
+  "compliance.DEPOSIT_RECEIVED": { en: "Deposit Received", fr: "Dépôt de garantie reçu" },
+  "compliance.TENANT_INSURANCE": { en: "Tenant Insurance", fr: "Assurance locataire" },
+  "compliance.DPE": { en: "Energy Rating (DPE)", fr: "DPE" },
+  "compliance.GAS_DIAGNOSTIC": { en: "Gas Diagnostic", fr: "Diagnostic gaz" },
+  "compliance.ELECTRICAL_DIAGNOSTIC": { en: "Electrical Diagnostic", fr: "Diagnostic électricité" },
+  "compliance.LEAD_DIAGNOSTIC": { en: "Lead Diagnostic", fr: "Diagnostic plomb" },
+  "compliance.SMOKE_DETECTOR": { en: "Smoke Detector", fr: "Détecteur de fumée" },
+  "compliance.CUSTOM": { en: "Custom", fr: "Personnalisé" },
+  "compliance.noItems": { en: "No compliance items tracked", fr: "Aucun élément de conformité" },
+
+  // ── Utilities ──
+  "utilities.title": { en: "Utilities", fr: "Compteurs" },
+  "utilities.addReading": { en: "Add Reading", fr: "Ajouter un relevé" },
+  "utilities.type": { en: "Type", fr: "Type" },
+  "utilities.period": { en: "Period", fr: "Période" },
+  "utilities.consumption": { en: "Consumption", fr: "Consommation" },
+  "utilities.cost": { en: "Cost", fr: "Coût" },
+  "utilities.WATER": { en: "Water", fr: "Eau" },
+  "utilities.ELECTRICITY": { en: "Electricity", fr: "Électricité" },
+  "utilities.GAS": { en: "Gas", fr: "Gaz" },
+  "utilities.OTHER": { en: "Other", fr: "Autre" },
+  "utilities.noReadings": { en: "No utility readings", fr: "Aucun relevé" },
+
+  // ── Smart Guidance ──
+  "guidance.title": { en: "To complete", fr: "À compléter" },
+  "guidance.noTenant": { en: "No tenant assigned", fr: "Aucun locataire assigné" },
+  "guidance.noRent": { en: "No rent defined", fr: "Aucun loyer défini" },
+  "guidance.noDocuments": { en: "No documents uploaded", fr: "Aucun document téléchargé" },
+  "guidance.noType": { en: "Property type not set", fr: "Type de bien non défini" },
+  "guidance.noValue": { en: "Property value not set", fr: "Valeur du bien non définie" },
+  "guidance.noLots": { en: "No lots added", fr: "Aucun lot ajouté" },
+  "guidance.activateModules": { en: "Activate modules for more features", fr: "Activez des modules pour plus de fonctionnalités" },
+
+  // ── Dashboard extras ──
+  "dashboard.actionsRequired": { en: "Actions Required", fr: "Actions requises" },
+  "dashboard.unpaidRents": { en: "Unpaid Rents", fr: "Loyers impayés" },
+  "dashboard.upcomingRents": { en: "Upcoming Rents", fr: "Loyers à venir" },
+  "dashboard.recentExpenses": { en: "Recent Expenses", fr: "Dépenses récentes" },
+  "dashboard.missingData": { en: "Missing Data", fr: "Données manquantes" },
+  "dashboard.totalOutstanding": { en: "Total Outstanding", fr: "Total impayé" },
+  "dashboard.delayDays": { en: "days late", fr: "jours de retard" },
+  "dashboard.financialOverview": { en: "Financial Overview", fr: "Vue financière" },
+  "dashboard.totalRentReceived": { en: "Total Rent Received", fr: "Total loyers perçus" },
+  "dashboard.totalCharges": { en: "Total Charges", fr: "Total charges" },
+  "dashboard.totalExpenses": { en: "Total Expenses", fr: "Total dépenses" },
+  "dashboard.netResult": { en: "Net Result", fr: "Résultat net" },
+  "dashboard.vacantLots": { en: "vacant lots without tenants", fr: "lots vacants sans locataire" },
+  "dashboard.propertiesMissingType": { en: "properties missing type", fr: "biens sans type défini" },
+  "dashboard.propertiesMissingValue": { en: "properties missing value", fr: "biens sans valeur définie" },
+
+  // ── Lot Detail ──
+  "lotDetail.backToProperty": { en: "Back to property", fr: "Retour au bien" },
+  "lotDetail.vacant": { en: "Vacant", fr: "Vacant" },
+  "lotDetail.occupied": { en: "Occupied", fr: "Occupé" },
+  "lotDetail.generalInfo": { en: "General Information", fr: "Informations générales" },
+  "lotDetail.surface": { en: "Surface", fr: "Surface" },
+  "lotDetail.rooms": { en: "Rooms", fr: "Pièces" },
+  "lotDetail.floor": { en: "Floor", fr: "Étage" },
+  "lotDetail.rental": { en: "Rental & Tenant", fr: "Location & Locataire" },
+  "lotDetail.noLease": { en: "No active lease", fr: "Aucun bail actif" },
+  "lotDetail.createLease": { en: "Create Lease", fr: "Créer un bail" },
+  "lotDetail.tenant": { en: "Tenant", fr: "Locataire" },
+  "lotDetail.selectTenant": { en: "Select a tenant", fr: "Sélectionner un locataire" },
+  "lotDetail.createTenantFirst": { en: "Create a tenant first in the Tenants section", fr: "Créez d'abord un locataire dans la section Locataires" },
+  "lotDetail.monthlyRent": { en: "Monthly Rent", fr: "Loyer mensuel" },
+  "lotDetail.charges": { en: "Charges", fr: "Charges" },
+  "lotDetail.deposit": { en: "Deposit", fr: "Dépôt de garantie" },
+  "lotDetail.startDate": { en: "Start Date", fr: "Date de début" },
+  "lotDetail.endDate": { en: "End Date (optional)", fr: "Date de fin (optionnel)" },
+  "lotDetail.paymentDay": { en: "Payment Day of Month", fr: "Jour de paiement" },
+  "lotDetail.creating": { en: "Creating...", fr: "Création..." },
+  "lotDetail.activeLease": { en: "Active Lease", fr: "Bail actif" },
+  "lotDetail.since": { en: "Since", fr: "Depuis" },
+  "lotDetail.rentAmount": { en: "Rent", fr: "Loyer" },
+  "lotDetail.chargesAmount": { en: "Charges", fr: "Charges" },
+  "lotDetail.depositAmount": { en: "Deposit", fr: "Dépôt" },
+  "lotDetail.endLease": { en: "End Lease", fr: "Résilier le bail" },
+  "lotDetail.rentTracking": { en: "Rent Tracking", fr: "Suivi des loyers" },
+  "lotDetail.noRentEvents": { en: "No rent entries yet", fr: "Aucune entrée de loyer" },
+  "lotDetail.month": { en: "Month", fr: "Mois" },
+  "lotDetail.amount": { en: "Amount", fr: "Montant" },
+  "lotDetail.paid": { en: "Paid", fr: "Payé" },
+  "lotDetail.status": { en: "Status", fr: "Statut" },
+  "lotDetail.markPaid": { en: "Mark as Paid", fr: "Marquer comme payé" },
+  "lotDetail.markUnpaid": { en: "Undo Payment", fr: "Annuler le paiement" },
+  "lotDetail.markAllPaid": { en: "Mark All as Paid", fr: "Tout marquer comme payé" },
+  "lotDetail.PENDING": { en: "Pending", fr: "En attente" },
+  "lotDetail.DUE": { en: "Due", fr: "Dû" },
+  "lotDetail.PAID": { en: "Paid", fr: "Payé" },
+  "lotDetail.LATE": { en: "Late", fr: "En retard" },
+  "lotDetail.PARTIALLY_PAID": { en: "Partial", fr: "Partiel" },
+  "lotDetail.documents": { en: "Documents", fr: "Documents" },
+  "lotDetail.noDocuments": { en: "No documents uploaded", fr: "Aucun document téléchargé" },
+  "lotDetail.uploadDocument": { en: "Upload Document", fr: "Télécharger un document" },
+  "lotDetail.dragDropHere": { en: "Drag & drop files here, or click to browse", fr: "Glissez-déposez vos fichiers ici, ou cliquez pour parcourir" },
+  "lotDetail.uploading": { en: "Uploading...", fr: "Envoi en cours..." },
+  "lotDetail.uploadSuccess": { en: "File uploaded successfully", fr: "Fichier envoyé avec succès" },
+  "lotDetail.uploadError": { en: "Upload failed", fr: "Échec de l'envoi" },
+  "lotDetail.maxFileSize": { en: "Max 10MB — PDF, images, Word, Excel", fr: "Max 10Mo — PDF, images, Word, Excel" },
+  "lotDetail.viewFile": { en: "View", fr: "Voir" },
+  "lotDetail.deleteDoc": { en: "Delete", fr: "Supprimer" },
+  "lotDetail.charges_section": { en: "Charges & Expenses", fr: "Charges & Dépenses" },
+  "lotDetail.noCharges": { en: "No charges recorded", fr: "Aucune charge enregistrée" },
+  "lotDetail.addCharge": { en: "Add Charge", fr: "Ajouter une charge" },
+  "lotDetail.works": { en: "Works", fr: "Travaux" },
+  "lotDetail.noWorks": { en: "No works tracked", fr: "Aucun travaux suivi" },
+  "lotDetail.legal": { en: "Legal & Compliance", fr: "Juridique & Conformité" },
+  "lotDetail.financialView": { en: "Financial Overview", fr: "Vue financière" },
+  "lotDetail.totalReceived": { en: "Total Received", fr: "Total perçu" },
+  "lotDetail.totalExpected": { en: "Total Expected", fr: "Total attendu" },
+  "lotDetail.outstanding": { en: "Outstanding", fr: "Impayé" },
+  "lotDetail.collectionRate": { en: "Collection Rate", fr: "Taux de recouvrement" },
+  "lotDetail.utilities": { en: "Utilities", fr: "Compteurs & Relevés" },
+  "lotDetail.addReading": { en: "Add Reading", fr: "Ajouter un relevé" },
+  "lotDetail.utilityType": { en: "Type", fr: "Type" },
+  "lotDetail.water": { en: "Water", fr: "Eau" },
+  "lotDetail.electricity": { en: "Electricity", fr: "Électricité" },
+  "lotDetail.gas": { en: "Gas", fr: "Gaz" },
+  "lotDetail.period": { en: "Period", fr: "Période" },
+  "lotDetail.consumption": { en: "Consumption", fr: "Consommation" },
+  "lotDetail.utilityCost": { en: "Cost (€)", fr: "Coût (€)" },
+  "lotDetail.noReadings": { en: "No utility readings yet", fr: "Aucun relevé enregistré" },
+  "lotDetail.keepSameLevel": { en: "Keep same level", fr: "Garder le même niveau" },
+
+  // ── Property Detail sections ──
+  "propertyDetail.generalInfo": { en: "General Information", fr: "Informations générales" },
+  "propertyDetail.rental": { en: "Rental & Tenants", fr: "Location & Locataires" },
+  "propertyDetail.rentTracking": { en: "Rent Tracking", fr: "Suivi des loyers" },
+  "propertyDetail.expenses": { en: "Expenses & Charges", fr: "Dépenses & Charges" },
+  "propertyDetail.utilities": { en: "Utilities", fr: "Compteurs" },
+  "propertyDetail.legal": { en: "Legal & Compliance", fr: "Juridique & Conformité" },
+  "propertyDetail.financialView": { en: "Financial Overview", fr: "Vue financière" },
 } as const;
 
 export type TranslationKey = keyof typeof translations;
@@ -293,18 +492,19 @@ interface I18nContextType {
 const I18nContext = createContext<I18nContextType | null>(null);
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(() => {
-    if (typeof window !== "undefined") {
-      return (localStorage.getItem("wealthos-locale") as Locale) || "en";
+  const [locale, setLocaleState] = useState<Locale>("en");
+
+  // Sync with localStorage after hydration to avoid SSR mismatch
+  useEffect(() => {
+    const saved = localStorage.getItem("wealthos-locale") as Locale | null;
+    if (saved && saved !== "en") {
+      setLocaleState(saved);
     }
-    return "en";
-  });
+  }, []);
 
   const setLocale = useCallback((newLocale: Locale) => {
     setLocaleState(newLocale);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("wealthos-locale", newLocale);
-    }
+    localStorage.setItem("wealthos-locale", newLocale);
   }, []);
 
   const t = useCallback(

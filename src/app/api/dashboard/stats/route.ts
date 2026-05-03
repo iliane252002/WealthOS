@@ -86,16 +86,34 @@ export async function GET() {
     take: 10,
   });
 
+  // Properties missing key data
+  const propertiesMissingType = properties.filter((p) => !p.type).length;
+  const propertiesMissingValue = properties.filter((p) => !p.currentValue).length;
+  const vacantLots = allLots.filter((l) => l.status === "VACANT").length;
+
+  // Total outstanding (unpaid late rents)
+  const allLateRents = await db.rentEvent.findMany({
+    where: {
+      status: "LATE",
+      lease: { lot: { property: { userId } } },
+    },
+  });
+  const totalOutstanding = allLateRents.reduce((sum, re) => sum + (re.amount - re.paidAmount), 0);
+
   return NextResponse.json({
     totalRealEstateValue,
     totalInvestmentValue,
     totalNetWorth,
     totalExpectedMonthlyIncome,
     totalCollectedThisMonth,
-    latePaymentsCount: lateRentEvents.length,
+    latePaymentsCount: allLateRents.length,
     occupancyRate,
     totalProperties: properties.length,
     totalLots,
     lateRentEvents,
+    totalOutstanding,
+    propertiesMissingType,
+    propertiesMissingValue,
+    vacantLots,
   });
 }

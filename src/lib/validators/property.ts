@@ -5,12 +5,13 @@ export const ownershipTypes = ["personal", "sci"] as const;
 
 export const createPropertySchema = z.object({
   name: z.string().min(1, "Property name is required"),
-  type: z.enum(propertyTypes),
   address: z.string().min(1, "Address is required"),
-  city: z.string().min(1, "City is required"),
-  postalCode: z.string().min(1, "Postal code is required"),
-  country: z.string().default("France"),
-  ownershipType: z.enum(ownershipTypes).default("personal"),
+  // Everything else is OPTIONAL
+  type: z.enum(propertyTypes).optional(),
+  city: z.string().optional(),
+  postalCode: z.string().optional(),
+  country: z.string().optional(),
+  ownershipType: z.enum(ownershipTypes).optional(),
   acquisitionDate: z.string().optional(),
   acquisitionPrice: z.number().positive().optional(),
   currentValue: z.number().positive().optional(),

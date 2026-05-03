@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { formatCurrency, formatPercent } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import {
   Building2,
   TrendingUp,
@@ -9,6 +9,9 @@ import {
   AlertTriangle,
   Home,
   PieChart,
+  AlertCircle,
+  ChevronRight,
+  Info,
 } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
@@ -23,6 +26,10 @@ interface DashboardStats {
   occupancyRate: number;
   totalProperties: number;
   totalLots: number;
+  totalOutstanding: number;
+  propertiesMissingType: number;
+  propertiesMissingValue: number;
+  vacantLots: number;
   lateRentEvents: Array<{
     id: string;
     dueDate: string;
@@ -135,9 +142,16 @@ export default function DashboardPage() {
     totalProperties: 0,
     totalLots: 0,
     lateRentEvents: [],
+    totalOutstanding: 0,
+    propertiesMissingType: 0,
+    propertiesMissingValue: 0,
+    vacantLots: 0,
   };
 
   const ws = wealthScore || { total: 0, grade: "F", occupancyScore: 0, incomeRegularity: 0, diversification: 0, growthTrend: 0, base: 10 };
+
+  // Count total actions needed
+  const actionsCount = s.latePaymentsCount + (s.propertiesMissingType > 0 ? 1 : 0) + (s.propertiesMissingValue > 0 ? 1 : 0) + (s.vacantLots > 0 ? 1 : 0);
 
   return (
     <div className="space-y-6">
@@ -150,6 +164,58 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Actions Required Banner */}
+      {actionsCount > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertCircle size={18} className="text-amber-600" />
+            <h3 className="font-semibold text-amber-900">{t("dashboard.actionsRequired")} ({actionsCount})</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {s.latePaymentsCount > 0 && (
+              <Link href="/notifications" className="flex items-center justify-between p-3 bg-white rounded-lg border border-amber-100 hover:border-amber-300 transition-colors group">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-red-500" />
+                  <span className="text-sm text-slate-700">
+                    <strong>{s.latePaymentsCount}</strong> {t("dashboard.unpaidRents")}
+                    {s.totalOutstanding > 0 && <span className="text-red-600 ml-1">({formatCurrency(s.totalOutstanding)})</span>}
+                  </span>
+                </div>
+                <ChevronRight size={14} className="text-slate-400 group-hover:text-amber-600" />
+              </Link>
+            )}
+            {s.vacantLots > 0 && (
+              <Link href="/properties" className="flex items-center justify-between p-3 bg-white rounded-lg border border-amber-100 hover:border-amber-300 transition-colors group">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span className="text-sm text-slate-700"><strong>{s.vacantLots}</strong> {t("dashboard.vacantLots")}</span>
+                </div>
+                <ChevronRight size={14} className="text-slate-400 group-hover:text-amber-600" />
+              </Link>
+            )}
+            {s.propertiesMissingType > 0 && (
+              <Link href="/properties" className="flex items-center justify-between p-3 bg-white rounded-lg border border-amber-100 hover:border-amber-300 transition-colors group">
+                <div className="flex items-center gap-2">
+                  <Info size={14} className="text-blue-500" />
+                  <span className="text-sm text-slate-700"><strong>{s.propertiesMissingType}</strong> {t("dashboard.propertiesMissingType")}</span>
+                </div>
+                <ChevronRight size={14} className="text-slate-400 group-hover:text-amber-600" />
+              </Link>
+            )}
+            {s.propertiesMissingValue > 0 && (
+              <Link href="/properties" className="flex items-center justify-between p-3 bg-white rounded-lg border border-amber-100 hover:border-amber-300 transition-colors group">
+                <div className="flex items-center gap-2">
+                  <Info size={14} className="text-blue-500" />
+                  <span className="text-sm text-slate-700"><strong>{s.propertiesMissingValue}</strong> {t("dashboard.propertiesMissingValue")}</span>
+                </div>
+                <ChevronRight size={14} className="text-slate-400 group-hover:text-amber-600" />
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Stat cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label={t("dashboard.totalNetWorth")}
@@ -176,12 +242,13 @@ export default function DashboardPage() {
           label={t("dashboard.latePayments")}
           value={String(s.latePaymentsCount)}
           icon={AlertTriangle}
-          subtext={s.latePaymentsCount > 0 ? t("dashboard.actionRequired") : t("dashboard.allOnTrack")}
+          subtext={s.latePaymentsCount > 0 ? `${t("dashboard.totalOutstanding")}: ${formatCurrency(s.totalOutstanding)}` : t("dashboard.allOnTrack")}
           accent={s.latePaymentsCount > 0 ? "red" : "green"}
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Wealth Score Breakdown */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
           <h3 className="text-sm font-medium text-slate-500 mb-4">{t("dashboard.wealthBreakdown")}</h3>
           <div className="space-y-3">
@@ -210,6 +277,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Late Payments Table */}
         <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-slate-500">{t("dashboard.latePayments")}</h3>
@@ -229,25 +297,35 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {s.lateRentEvents.slice(0, 5).map((event) => (
-                    <tr key={event.id} className="border-b border-slate-50">
-                      <td className="py-2.5">
-                        <span className="font-medium text-slate-900">
-                          {event.lease?.lot?.property?.name}
-                        </span>
-                        <span className="text-slate-400 ml-1">
-                          {event.lease?.lot?.label}
-                        </span>
-                      </td>
-                      <td className="py-2.5 text-slate-600">
-                        {event.lease?.tenant?.firstName} {event.lease?.tenant?.lastName}
-                      </td>
-                      <td className="py-2.5 text-red-600 font-medium">{event.dueDate}</td>
-                      <td className="py-2.5 text-right font-medium text-slate-900">
-                        {formatCurrency(event.amount)}
-                      </td>
-                    </tr>
-                  ))}
+                  {s.lateRentEvents.slice(0, 5).map((event) => {
+                    const dueDate = new Date(event.dueDate);
+                    const now = new Date();
+                    const daysLate = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+                    return (
+                      <tr key={event.id} className="border-b border-slate-50">
+                        <td className="py-2.5">
+                          <span className="font-medium text-slate-900">
+                            {event.lease?.lot?.property?.name}
+                          </span>
+                          <span className="text-slate-400 ml-1">
+                            {event.lease?.lot?.label}
+                          </span>
+                        </td>
+                        <td className="py-2.5 text-slate-600">
+                          {event.lease?.tenant?.firstName} {event.lease?.tenant?.lastName}
+                        </td>
+                        <td className="py-2.5">
+                          <span className="text-red-600 font-medium">{event.dueDate}</span>
+                          {daysLate > 0 && (
+                            <span className="text-xs text-red-400 ml-1">({daysLate} {t("dashboard.delayDays")})</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 text-right font-medium text-slate-900">
+                          {formatCurrency(event.amount)}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -260,6 +338,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Link
           href="/properties/new"

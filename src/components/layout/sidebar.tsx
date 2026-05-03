@@ -15,16 +15,30 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  Receipt,
 } from "lucide-react";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 
-const navItems: { labelKey: TranslationKey; href: string; icon: typeof LayoutDashboard }[] = [
+interface ModuleState {
+  module: string;
+  isActive: boolean;
+}
+
+const coreNavItems: { labelKey: TranslationKey; href: string; icon: typeof LayoutDashboard }[] = [
   { labelKey: "nav.dashboard", href: "/", icon: LayoutDashboard },
   { labelKey: "nav.properties", href: "/properties", icon: Building2 },
   { labelKey: "nav.tenants", href: "/tenants", icon: Users },
   { labelKey: "nav.documents", href: "/documents", icon: FileText },
-  { labelKey: "nav.works", href: "/works", icon: Wrench },
+];
+
+const moduleNavItems: { labelKey: TranslationKey; href: string; icon: typeof LayoutDashboard; module: string }[] = [
+  { labelKey: "nav.expenses", href: "/expenses", icon: Receipt, module: "EXPENSES" },
+  { labelKey: "nav.works", href: "/works", icon: Wrench, module: "WORKS" },
+];
+
+const otherNavItems: { labelKey: TranslationKey; href: string; icon: typeof LayoutDashboard }[] = [
   { labelKey: "nav.investments", href: "/investments", icon: TrendingUp },
   { labelKey: "nav.timeline", href: "/timeline", icon: Clock },
   { labelKey: "nav.notifications", href: "/notifications", icon: Bell },
@@ -38,6 +52,20 @@ export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const { t } = useI18n();
+
+  const { data: modules = [] } = useQuery<ModuleState[]>({
+    queryKey: ["modules"],
+    queryFn: () => fetch("/api/modules").then((r) => r.json()),
+  });
+
+  const isModuleActive = (mod: string) => modules.find((m) => m.module === mod)?.isActive ?? false;
+
+  // Build full nav: core + active module items + other items
+  const navItems = [
+    ...coreNavItems,
+    ...moduleNavItems.filter((item) => isModuleActive(item.module)),
+    ...otherNavItems,
+  ];
 
   return (
     <aside

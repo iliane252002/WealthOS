@@ -12,7 +12,7 @@ export const createInvestmentSchema = z.object({
   quantity: z.number().positive().optional(),
   buyPrice: z.number().positive("Buy price must be positive"),
   currentPrice: z.number().positive().optional(),
-  currency: z.string().default("EUR"),
+  currency: z.string(),
   broker: z.string().optional(),
   accountName: z.string().optional(),
   purchaseDate: z.string().optional(),

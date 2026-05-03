@@ -2,12 +2,28 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatCurrency, formatPercent } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createInvestmentSchema, type CreateInvestmentInput, assetTypes } from "@/lib/validators/investment";
-import { TrendingUp, Plus, X, PieChart } from "lucide-react";
+import { TrendingUp, Plus, X, Search } from "lucide-react";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
+
+interface StockResult {
+  symbol: string;
+  name: string;
+  type: string;
+  exchange: string;
+}
+
+function useDebounce(value: string, delay: number) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
 
 interface Investment {
   id: string;
@@ -32,10 +48,43 @@ export default function InvestmentsPage() {
     queryFn: () => fetch("/api/investments").then((r) => r.json()),
   });
 
+  const [stockSearch, setStockSearch] = useState("");
+  const [showStockResults, setShowStockResults] = useState(false);
+  const stockDropdownRef = useRef<HTMLDivElement>(null);
+  const debouncedSearch = useDebounce(stockSearch, 300);
+
   const form = useForm<CreateInvestmentInput>({
     resolver: zodResolver(createInvestmentSchema),
     defaultValues: { currency: "EUR" },
   });
+
+  const { data: stockResults = [] } = useQuery<StockResult[]>({
+    queryKey: ["stock-search", debouncedSearch],
+    queryFn: () => fetch(`/api/stocks/search?q=${encodeURIComponent(debouncedSearch)}`).then((r) => r.json()),
+    enabled: debouncedSearch.length >= 2,
+  });
+
+  const selectStock = useCallback((stock: StockResult) => {
+    form.setValue("name", stock.name);
+    form.setValue("ticker", stock.symbol);
+    const typeMap: Record<string, string> = {
+      EQUITY: "STOCK", ETF: "ETF", MUTUALFUND: "FUND", CRYPTOCURRENCY: "CRYPTO",
+    };
+    form.setValue("assetType", (typeMap[stock.type] || "OTHER") as CreateInvestmentInput["assetType"]);
+    setStockSearch("");
+    setShowStockResults(false);
+  }, [form]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (stockDropdownRef.current && !stockDropdownRef.current.contains(e.target as Node)) {
+        setShowStockResults(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   const createMutation = useMutation({
     mutationFn: async (data: CreateInvestmentInput) => {
@@ -117,6 +166,42 @@ export default function InvestmentsPage() {
           onSubmit={form.handleSubmit((data) => createMutation.mutate(data))}
           className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4"
         >
+          {/* Stock Search */}
+          <div ref={stockDropdownRef} className="relative">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              <Search size={14} className="inline mr-1" />
+              {t("investments.searchStock")}
+            </label>
+            <input
+              value={stockSearch}
+              onChange={(e) => { setStockSearch(e.target.value); setShowStockResults(true); }}
+              onFocus={() => { if (stockSearch.length >= 2) setShowStockResults(true); }}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              placeholder={t("investments.searchPlaceholder")}
+            />
+            {showStockResults && stockResults.length > 0 && (
+              <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                {stockResults.map((stock) => (
+                  <button
+                    key={stock.symbol}
+                    type="button"
+                    onClick={() => selectStock(stock)}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-center justify-between border-b border-slate-50 last:border-0 transition-colors"
+                  >
+                    <div>
+                      <span className="font-medium text-slate-900 text-sm">{stock.name}</span>
+                      <span className="text-xs text-slate-400 ml-2">{stock.exchange}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">{stock.symbol}</span>
+                      <span className="text-xs text-slate-400">{stock.type}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t("investments.name")}</label>

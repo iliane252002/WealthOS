@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { FileText, Plus, X, Search, Filter } from "lucide-react";
+import { useState, useRef, useCallback } from "react";
+import { FileText, Plus, X, Search, Upload, Download, Trash2, Eye } from "lucide-react";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 
 interface Document {
@@ -27,11 +27,24 @@ const categoryKeys: Record<string, TranslationKey> = {
   PHOTO: "documents.photo", DIAGNOSTIC: "documents.diagnostic", RECEIPT: "documents.receipt", OTHER: "documents.other",
 };
 
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export default function DocumentsPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
-  const [showForm, setShowForm] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("OTHER");
+  const [selectedPropertyId, setSelectedPropertyId] = useState("");
+  const [description, setDescription] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { t } = useI18n();
 
   const queryParams = new URLSearchParams();
@@ -48,29 +61,46 @@ export default function DocumentsPage() {
     queryFn: () => fetch("/api/properties").then((r) => r.json()),
   });
 
-  const createMutation = useMutation({
-    mutationFn: async (formData: FormData) => {
-      const data = {
-        name: formData.get("name") as string,
-        category: formData.get("category") as string,
-        propertyId: formData.get("propertyId") as string || undefined,
-        fileUrl: "/uploads/placeholder",
-        fileType: "application/pdf",
-        fileSize: 0,
-        description: formData.get("description") as string || undefined,
-      };
-      const res = await fetch("/api/documents", {
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      setUploadingFile(true);
+
+      // Step 1: Upload the file
+      const formData = new FormData();
+      formData.append("file", file);
+      const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!uploadRes.ok) {
+        const err = await uploadRes.json();
+        throw new Error(err.error || "Upload failed");
+      }
+      const uploaded = await uploadRes.json();
+
+      // Step 2: Create the document record
+      const docRes = await fetch("/api/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          name: uploaded.name,
+          category: selectedCategory,
+          fileUrl: uploaded.url,
+          fileType: uploaded.type,
+          fileSize: uploaded.size,
+          propertyId: selectedPropertyId || undefined,
+          description: description || undefined,
+        }),
       });
-      if (!res.ok) throw new Error("Failed to create document");
-      return res.json();
+      if (!docRes.ok) throw new Error("Failed to create document");
+      return docRes.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["documents"] });
-      setShowForm(false);
+      setUploadingFile(false);
+      setShowUpload(false);
+      setSelectedCategory("OTHER");
+      setSelectedPropertyId("");
+      setDescription("");
     },
+    onError: () => setUploadingFile(false),
   });
 
   const deleteMutation = useMutation({
@@ -80,16 +110,23 @@ export default function DocumentsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["documents"] }),
   });
 
+  const handleFileDrop = useCallback((files: FileList | null) => {
+    if (files && files.length > 0) {
+      uploadMutation.mutate(files[0]);
+    }
+    setIsDragging(false);
+  }, [uploadMutation]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">{t("documents.title")}</h1>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => setShowUpload(!showUpload)}
           className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
         >
-          {showForm ? <X size={16} /> : <Plus size={16} />}
-          {showForm ? t("documents.cancel") : t("documents.addDocument")}
+          {showUpload ? <X size={16} /> : <Upload size={16} />}
+          {showUpload ? t("documents.cancel") : t("documents.addDocument")}
         </button>
       </div>
 
@@ -114,42 +151,86 @@ export default function DocumentsPage() {
         </select>
       </div>
 
-      {showForm && (
-        <form
-          onSubmit={(e) => { e.preventDefault(); createMutation.mutate(new FormData(e.currentTarget)); }}
-          className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4"
-        >
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t("documents.documentName")}</label>
-              <input name="name" required className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
-            </div>
+      {/* Upload Form with Drag & Drop */}
+      {showUpload && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+          {/* Metadata fields */}
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t("documents.category")}</label>
-              <select name="category" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              >
                 {categories.filter(c => c !== "ALL").map((c) => (
                   <option key={c} value={c}>{t(categoryKeys[c])}</option>
                 ))}
               </select>
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t("documents.property")}</label>
-              <select name="propertyId" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+              <select
+                value={selectedPropertyId}
+                onChange={(e) => setSelectedPropertyId(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              >
                 <option value="">{t("documents.none")}</option>
                 {properties?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t("documents.description")}</label>
-              <input name="description" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+              <input
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                placeholder="Optional description..."
+              />
             </div>
           </div>
-          <button type="submit" disabled={createMutation.isPending} className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium">
-            {createMutation.isPending ? t("documents.saving") : t("documents.save")}
-          </button>
-        </form>
+
+          {/* Drag & Drop Zone */}
+          <div
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={(e) => { e.preventDefault(); handleFileDrop(e.dataTransfer.files); }}
+            onClick={() => fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all ${
+              isDragging
+                ? "border-blue-400 bg-blue-50"
+                : "border-slate-300 hover:border-blue-300 hover:bg-slate-50"
+            }`}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx"
+              onChange={(e) => handleFileDrop(e.target.files)}
+            />
+            {uploadingFile ? (
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-10 h-10 border-3 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                <p className="text-sm text-blue-600 font-medium">{t("lotDetail.uploading")}</p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-3">
+                <div className="p-4 bg-slate-100 rounded-full">
+                  <Upload size={32} className={isDragging ? "text-blue-400" : "text-slate-400"} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-700">{t("lotDetail.dragDropHere")}</p>
+                  <p className="text-xs text-slate-400 mt-1">{t("lotDetail.maxFileSize")}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {uploadMutation.isError && (
+            <p className="text-sm text-red-500">{(uploadMutation.error as Error).message}</p>
+          )}
+        </div>
       )}
 
       {isLoading ? (
@@ -163,7 +244,7 @@ export default function DocumentsPage() {
       ) : (
         <div className="space-y-2">
           {documents.map((doc) => (
-            <div key={doc.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center justify-between hover:border-blue-200 transition-colors">
+            <div key={doc.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center justify-between hover:border-blue-200 transition-colors group">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-slate-100 rounded-lg">
                   <FileText size={20} className="text-slate-500" />
@@ -173,12 +254,31 @@ export default function DocumentsPage() {
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{t(categoryKeys[doc.category]) || doc.category}</span>
                     {doc.property && <span className="text-xs text-slate-400">{doc.property.name}</span>}
+                    {doc.lot && <span className="text-xs text-slate-400">/ {doc.lot.label}</span>}
+                    <span className="text-xs text-slate-300">{formatFileSize(doc.fileSize)}</span>
                   </div>
                 </div>
               </div>
-              <button onClick={() => deleteMutation.mutate(doc.id)} className="text-slate-400 hover:text-red-500">
-                <X size={16} />
-              </button>
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {doc.fileUrl && doc.fileUrl !== "/uploads/placeholder" && (
+                  <a
+                    href={doc.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="View"
+                  >
+                    <Eye size={16} />
+                  </a>
+                )}
+                <button
+                  onClick={() => { if (confirm("Delete this document?")) deleteMutation.mutate(doc.id); }}
+                  className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Delete"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
             </div>
           ))}
         </div>

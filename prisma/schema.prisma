@@ -17,14 +17,16 @@ model User {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  properties    Property[]
-  tenants       Tenant[]
-  investments   Investment[]
-  notifications Notification[]
-  documents     Document[]
-  works         Work[]
-  accounts      Account[]
-  sessions      Session[]
+  properties      Property[]
+  tenants         Tenant[]
+  investments     Investment[]
+  notifications   Notification[]
+  documents       Document[]
+  works           Work[]
+  expenses        Expense[]
+  accounts        Account[]
+  sessions        Session[]
+  enabledModules  UserModule[]
 }
 
 model Account {
@@ -54,16 +56,31 @@ model Session {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+// ─── USER MODULES (feature flags per user) ──────────
+
+model UserModule {
+  id        String   @id @default(cuid())
+  userId    String
+  module    String   // EXPENSES | WORKS | UTILITIES | LEGAL | ADVANCED_DOCS
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, module])
+  @@index([userId])
+}
+
 // ─── REAL ESTATE ────────────────────────────────────
 
 model Property {
   id               String   @id @default(cuid())
   userId           String
   name             String
-  type             String   // APARTMENT | HOUSE | BUILDING
+  type             String?  // APARTMENT | HOUSE | BUILDING (optional now)
   address          String
-  city             String
-  postalCode       String
+  city             String?
+  postalCode       String?
   country          String   @default("France")
   ownershipType    String   @default("personal") // personal | sci
   acquisitionDate  String?
@@ -75,10 +92,12 @@ model Property {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  user      User       @relation(fields: [userId], references: [id])
-  lots      Lot[]
-  documents Document[]
-  works     Work[]
+  user             User              @relation(fields: [userId], references: [id])
+  lots             Lot[]
+  documents        Document[]
+  works            Work[]
+  expenses         Expense[]
+  complianceItems  ComplianceItem[]
 
   @@index([userId])
 }
@@ -92,13 +111,18 @@ model Lot {
   rooms       Int?
   floor       Int?
   description String?
+  monthlyRent Float?   // Quick rent amount (before lease)
+  rentDueDay  Int?     // Day of month rent is due
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  property  Property   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  leases    Lease[]
-  documents Document[]
-  works     Work[]
+  property        Property         @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  leases          Lease[]
+  documents       Document[]
+  works           Work[]
+  expenses        Expense[]
+  utilities       Utility[]
+  complianceItems ComplianceItem[]
 
   @@index([propertyId])
 }
@@ -129,6 +153,7 @@ model Lease {
   monthlyRent       Float
   charges           Float    @default(0)
   deposit           Float?
+  depositReceived   Boolean  @default(false)
   paymentDayOfMonth Int      @default(1)
   isActive          Boolean  @default(true)
   notifyDaysBefore  Int      @default(3)
@@ -215,6 +240,75 @@ model Work {
   @@index([propertyId])
 }
 
+// ─── EXPENSES & CHARGES ─────────────────────────────
+
+model Expense {
+  id          String   @id @default(cuid())
+  userId      String
+  propertyId  String?
+  lotId       String?
+  title       String
+  amount      Float
+  category    String   @default("OTHER") // INSURANCE | TAX | MAINTENANCE | MANAGEMENT | CONDO_FEES | LOAN | UTILITY | OTHER
+  isRecurring Boolean  @default(false)
+  frequency   String?  // MONTHLY | QUARTERLY | YEARLY
+  date        String
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id])
+  property Property? @relation(fields: [propertyId], references: [id])
+  lot      Lot?      @relation(fields: [lotId], references: [id])
+
+  @@index([userId])
+  @@index([propertyId])
+  @@index([category])
+}
+
+// ─── UTILITIES (water, electricity) ─────────────────
+
+model Utility {
+  id          String   @id @default(cuid())
+  lotId       String
+  type        String   // WATER | ELECTRICITY | GAS | OTHER
+  period      String   // YYYY-MM format
+  consumption Float?
+  cost        Float?
+  unit        String?  // m3, kWh, etc.
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  lot Lot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+
+  @@unique([lotId, type, period])
+  @@index([lotId])
+}
+
+// ─── LEGAL & COMPLIANCE ─────────────────────────────
+
+model ComplianceItem {
+  id          String   @id @default(cuid())
+  propertyId  String?
+  lotId       String?
+  type        String   // LEASE_SIGNED | DEPOSIT_RECEIVED | TENANT_INSURANCE | DPE | GAS_DIAGNOSTIC | ELECTRICAL_DIAGNOSTIC | LEAD_DIAGNOSTIC | SMOKE_DETECTOR | CUSTOM
+  label       String
+  status      String   @default("MISSING") // OK | MISSING | EXPIRED | EXPIRING_SOON
+  date        String?  // Date of completion/receipt
+  expiryDate  String?  // When it expires
+  notes       String?
+  documentUrl String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  property Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  lot      Lot?      @relation(fields: [lotId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+  @@index([lotId])
+}
+
 // ─── INVESTMENTS ────────────────────────────────────
 
 model Investment {
@@ -245,7 +339,7 @@ model Investment {
 model Notification {
   id        String   @id @default(cuid())
   userId    String
-  type      String   // RENT_REMINDER | RENT_LATE | LEASE_EXPIRING | WORK_COMPLETED | GENERAL
+  type      String   // RENT_REMINDER | RENT_LATE | LEASE_EXPIRING | WORK_COMPLETED | COMPLIANCE_EXPIRING | GENERAL
   title     String
   message   String
   link      String?
