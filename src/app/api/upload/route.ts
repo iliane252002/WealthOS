@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { writeFile, mkdir } from "node:fs/promises";
-import { join, extname } from "node:path";
-import { randomUUID } from "node:crypto";
 
 const ALLOWED_TYPES: Record<string, string> = {
   "application/pdf": ".pdf",
@@ -29,18 +26,12 @@ export async function POST(request: NextRequest) {
     const file = formData.get("file") as File;
 
     if (!file || typeof file === "string") {
-      return NextResponse.json(
-        { error: "No file provided" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
     if (!ALLOWED_TYPES[file.type]) {
       return NextResponse.json(
-        {
-          error: "Unsupported file type",
-          allowedTypes: Object.keys(ALLOWED_TYPES),
-        },
+        { error: "Unsupported file type", allowedTypes: Object.keys(ALLOWED_TYPES) },
         { status: 400 }
       );
     }
@@ -52,31 +43,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Vercel Blob in production, local filesystem in dev
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      const { put } = await import("@vercel/blob");
+      const blob = await put(`wealthos/${session.user.id}/${Date.now()}-${file.name}`, file, {
+        access: "public",
+      });
+      return NextResponse.json({
+        url: blob.url,
+        type: file.type,
+        size: file.size,
+        name: file.name,
+      });
+    }
+
+    // Local dev: save to /uploads folder
+    const { writeFile, mkdir } = await import("node:fs/promises");
+    const { join, extname } = await import("node:path");
+    const { randomUUID } = await import("node:crypto");
+
     const uploadDir = join(process.cwd(), "uploads");
     await mkdir(uploadDir, { recursive: true });
 
-    const originalName = file.name;
-    const ext = extname(originalName) || ALLOWED_TYPES[file.type];
+    const ext = extname(file.name) || ALLOWED_TYPES[file.type];
     const uniqueName = `${randomUUID()}${ext}`;
     const filePath = join(uploadDir, uniqueName);
-
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    await writeFile(filePath, buffer);
-
-    const fileUrl = `/api/uploads/${uniqueName}`;
+    await writeFile(filePath, Buffer.from(arrayBuffer));
 
     return NextResponse.json({
-      url: fileUrl,
+      url: `/api/uploads/${uniqueName}`,
       type: file.type,
       size: file.size,
-      name: originalName,
+      name: file.name,
     });
   } catch (error) {
     console.error("Upload error:", error);
-    return NextResponse.json(
-      { error: "Failed to upload file" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to upload file" }, { status: 500 });
   }
 }

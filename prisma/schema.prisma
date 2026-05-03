@@ -3,8 +3,11 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
+
+// NOTE: Pour le développement local, utiliser DATABASE_URL avec une connexion PostgreSQL locale
+// ou Neon (https://neon.tech). Le fichier .env.local permet de surcharger .env.
 
 // ─── AUTH ────────────────────────────────────────────
 
