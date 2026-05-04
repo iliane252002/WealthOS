@@ -18,6 +18,8 @@ import {
   Receipt,
   BookOpen,
   Percent,
+  CheckSquare,
+  HardHat,
 } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -41,6 +43,8 @@ const moduleNavItems: { labelKey: TranslationKey; href: string; icon: typeof Lay
 ];
 
 const otherNavItems: { labelKey: TranslationKey; href: string; icon: typeof LayoutDashboard }[] = [
+  { labelKey: "nav.tasks", href: "/tasks", icon: CheckSquare },
+  { labelKey: "nav.contractors", href: "/contractors", icon: HardHat },
   { labelKey: "nav.investments", href: "/investments", icon: TrendingUp },
   { labelKey: "nav.accounting", href: "/comptabilite", icon: BookOpen },
   { labelKey: "nav.fiscalite", href: "/fiscalite", icon: Percent },

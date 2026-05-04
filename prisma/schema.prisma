@@ -31,6 +31,9 @@ model User {
   sessions         Session[]
   enabledModules   UserModule[]
   loans            Loan[]
+  contractors      Contractor[]
+  tasks            Task[]
+  etatsDesLieux    EtatDesLieux[]
 }
 
 model Account {
@@ -104,6 +107,7 @@ model Property {
   expenses         Expense[]
   complianceItems  ComplianceItem[]
   loans            Loan[]
+  tasks            Task[]
 
   @@index([userId])
 }
@@ -129,6 +133,8 @@ model Lot {
   expenses        Expense[]
   utilities       Utility[]
   complianceItems ComplianceItem[]
+  tasks           Task[]
+  etatsDesLieux   EtatDesLieux[]
 
   @@index([propertyId])
 }
@@ -147,6 +153,7 @@ model Tenant {
   user      User            @relation(fields: [userId], references: [id])
   leases    Lease[]
   coLeases  LeaseCoTenant[]
+  tasks     Task[]
 
   @@index([userId])
 }
@@ -375,6 +382,78 @@ model Loan {
 
   @@index([userId])
   @@index([propertyId])
+}
+
+// ─── CONTRACTORS (carnet d'artisans) ────────────────
+
+model Contractor {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  company   String?
+  trade     String   // PLOMBIER | ELECTRICIEN | MACON | MENUISIER | PEINTRE | CHAUFFAGISTE | JARDINIER | SERRURIER | AUTRE
+  phone     String?
+  email     String?
+  address   String?
+  notes     String?
+  rating    Int?     // 1-5
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id])
+  tasks Task[]
+
+  @@index([userId])
+}
+
+// ─── TASKS (tâches) ──────────────────────────────────
+
+model Task {
+  id           String   @id @default(cuid())
+  userId       String
+  propertyId   String?
+  lotId        String?
+  tenantId     String?
+  contractorId String?
+  title        String
+  description  String?
+  priority     String   @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
+  status       String   @default("TODO")   // TODO | IN_PROGRESS | DONE
+  dueDate      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user       User        @relation(fields: [userId], references: [id])
+  property   Property?   @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  lot        Lot?        @relation(fields: [lotId], references: [id], onDelete: SetNull)
+  tenant     Tenant?     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  contractor Contractor? @relation(fields: [contractorId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@index([propertyId])
+}
+
+// ─── ÉTATS DES LIEUX ────────────────────────────────
+
+model EtatDesLieux {
+  id        String   @id @default(cuid())
+  userId    String
+  lotId     String
+  leaseId   String?
+  type      String   // ENTREE | SORTIE
+  date      String
+  notes     String?
+  rooms     Json?    // [{ name, condition, notes }]
+  status    String   @default("DRAFT") // DRAFT | COMPLETED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+  lot  Lot  @relation(fields: [lotId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([lotId])
 }
 
 // ─── NOTIFICATIONS ──────────────────────────────────

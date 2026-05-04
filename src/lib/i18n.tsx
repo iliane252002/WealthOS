@@ -17,6 +17,8 @@ const translations = {
   "nav.expenses": { en: "Expenses", fr: "Dépenses" },
   "nav.accounting": { en: "Accounting", fr: "Comptabilité" },
   "nav.fiscalite": { en: "Tax Tips", fr: "Fiscalité" },
+  "nav.tasks": { en: "Tasks", fr: "Tâches" },
+  "nav.contractors": { en: "Contractors", fr: "Artisans" },
   "nav.settings": { en: "Settings", fr: "Paramètres" },
 
   // ── Topbar ──

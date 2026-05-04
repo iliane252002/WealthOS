@@ -8,6 +8,7 @@ import {
   DoorOpen, ChevronDown, ChevronRight, AlertCircle,
   DollarSign, TrendingUp, Shield, Check, Clock,
   Plus, X, Trash2, Upload, Droplets, Zap, Flame, Copy,
+  ClipboardList, Pencil,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -21,6 +22,22 @@ import { useI18n, type TranslationKey } from "@/lib/i18n";
 
 interface CoTenant {
   tenant: { id: string; firstName: string; lastName: string };
+}
+
+interface EdlRoom {
+  name: string;
+  condition: string; // EXCELLENT | BON | USAGE | MAUVAIS
+  notes?: string;
+}
+
+interface EtatDesLieux {
+  id: string;
+  type: "ENTREE" | "SORTIE";
+  date: string;
+  notes: string | null;
+  rooms: EdlRoom[] | null;
+  status: "DRAFT" | "COMPLETED";
+  createdAt: string;
 }
 
 interface LotDetail {
@@ -115,6 +132,206 @@ function StatusBadge({ status }: { status: string }) {
   return <Badge color={cfg.color}>{status}</Badge>;
 }
 
+// ─── État des lieux components ──────────────────────
+
+const CONDITION_LABELS: Record<string, string> = {
+  EXCELLENT: "Excellent",
+  BON: "Bon",
+  USAGE: "Usagé",
+  MAUVAIS: "Mauvais",
+};
+const CONDITION_COLORS: Record<string, string> = {
+  EXCELLENT: "text-emerald-600 bg-emerald-50",
+  BON: "text-blue-600 bg-blue-50",
+  USAGE: "text-amber-600 bg-amber-50",
+  MAUVAIS: "text-red-600 bg-red-50",
+};
+
+function EdlCard({
+  edl, onEdit, onDelete, onToggleStatus,
+}: {
+  edl: EtatDesLieux;
+  onEdit: () => void;
+  onDelete: () => void;
+  onToggleStatus: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const rooms = (edl.rooms ?? []) as EdlRoom[];
+
+  return (
+    <div className="border border-slate-200 rounded-lg overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 bg-slate-50">
+        <div className="flex items-center gap-3">
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${edl.type === "ENTREE" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+            {edl.type === "ENTREE" ? "État d'entrée" : "État de sortie"}
+          </span>
+          <span className="text-sm text-slate-600">{new Date(edl.date).toLocaleDateString("fr-FR")}</span>
+          <span className={`text-xs px-2 py-0.5 rounded-full ${edl.status === "COMPLETED" ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-500"}`}>
+            {edl.status === "COMPLETED" ? "✓ Signé" : "Brouillon"}
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button onClick={onToggleStatus} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors" title={edl.status === "COMPLETED" ? "Repasser en brouillon" : "Marquer comme signé"}>
+            <Check size={14} />
+          </button>
+          <button onClick={onEdit} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors">
+            <Pencil size={14} />
+          </button>
+          <button onClick={onDelete} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors">
+            <Trash2 size={14} />
+          </button>
+          <button onClick={() => setExpanded(!expanded)} className="p-1.5 text-slate-400 hover:text-slate-600 rounded transition-colors">
+            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </button>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="px-4 py-3 space-y-3">
+          {edl.notes && <p className="text-sm text-slate-600 italic">{edl.notes}</p>}
+          {rooms.length > 0 && (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-slate-500 border-b border-slate-100">
+                  <th className="pb-1 font-medium">Pièce</th>
+                  <th className="pb-1 font-medium">État</th>
+                  <th className="pb-1 font-medium">Observations</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rooms.map((room, i) => (
+                  <tr key={i} className="border-b border-slate-50">
+                    <td className="py-1.5 font-medium text-slate-800">{room.name}</td>
+                    <td className="py-1.5">
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${CONDITION_COLORS[room.condition] ?? "bg-slate-100 text-slate-600"}`}>
+                        {CONDITION_LABELS[room.condition] ?? room.condition}
+                      </span>
+                    </td>
+                    <td className="py-1.5 text-slate-500 text-xs">{room.notes || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EdlForm({
+  activeLease, editingEdl, edlRooms, setEdlRooms, onSubmit, onCancel, isPending,
+}: {
+  activeLease?: { id: string } | undefined;
+  editingEdl: EtatDesLieux | null;
+  edlRooms: EdlRoom[];
+  setEdlRooms: React.Dispatch<React.SetStateAction<EdlRoom[]>>;
+  onSubmit: (data: { type: string; date: string; notes: string }) => void;
+  onCancel: () => void;
+  isPending: boolean;
+}) {
+  const [type, setType] = useState<"ENTREE" | "SORTIE">(editingEdl?.type ?? "ENTREE");
+  const [date, setDate] = useState(editingEdl?.date ?? new Date().toISOString().slice(0, 10));
+  const [notes, setNotes] = useState(editingEdl?.notes ?? "");
+
+  useEffect(() => {
+    if (editingEdl) {
+      setType(editingEdl.type);
+      setDate(editingEdl.date);
+      setNotes(editingEdl.notes ?? "");
+    }
+  }, [editingEdl]);
+
+  const updateRoom = (i: number, field: keyof EdlRoom, value: string) => {
+    setEdlRooms((prev) => prev.map((r, idx) => idx === i ? { ...r, [field]: value } : r));
+  };
+
+  const addRoom = () => setEdlRooms((prev) => [...prev, { name: "", condition: "BON", notes: "" }]);
+  const removeRoom = (i: number) => setEdlRooms((prev) => prev.filter((_, idx) => idx !== i));
+
+  return (
+    <div className="bg-slate-50 rounded-lg border border-slate-200 p-4 space-y-4 mb-4">
+      <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+        {editingEdl ? "Modifier l'état des lieux" : "Nouvel état des lieux"}
+      </p>
+
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <label className="block text-xs text-slate-600 mb-1">Type *</label>
+          <select value={type} onChange={(e) => setType(e.target.value as "ENTREE" | "SORTIE")} className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm bg-white">
+            <option value="ENTREE">État d'entrée</option>
+            <option value="SORTIE">État de sortie</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-slate-600 mb-1">Date *</label>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm bg-white" />
+        </div>
+        <div>
+          <label className="block text-xs text-slate-600 mb-1">Notes générales</label>
+          <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Observations globales..." className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm bg-white" />
+        </div>
+      </div>
+
+      {/* Room inspection grid */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-medium text-slate-600">Pièces</p>
+          <button type="button" onClick={addRoom} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1">
+            <Plus size={12} /> Ajouter une pièce
+          </button>
+        </div>
+        <div className="space-y-2">
+          {edlRooms.map((room, i) => (
+            <div key={i} className="grid grid-cols-12 gap-2 items-center">
+              <input
+                value={room.name}
+                onChange={(e) => updateRoom(i, "name", e.target.value)}
+                placeholder="Pièce"
+                className="col-span-3 px-2 py-1.5 border border-slate-300 rounded text-sm bg-white"
+              />
+              <select
+                value={room.condition}
+                onChange={(e) => updateRoom(i, "condition", e.target.value)}
+                className="col-span-3 px-2 py-1.5 border border-slate-300 rounded text-sm bg-white"
+              >
+                <option value="EXCELLENT">Excellent</option>
+                <option value="BON">Bon</option>
+                <option value="USAGE">Usagé</option>
+                <option value="MAUVAIS">Mauvais</option>
+              </select>
+              <input
+                value={room.notes ?? ""}
+                onChange={(e) => updateRoom(i, "notes", e.target.value)}
+                placeholder="Observations..."
+                className="col-span-5 px-2 py-1.5 border border-slate-300 rounded text-sm bg-white"
+              />
+              <button type="button" onClick={() => removeRoom(i)} className="col-span-1 text-slate-400 hover:text-red-500 flex justify-center">
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex gap-2 pt-1">
+        <button
+          type="button"
+          disabled={isPending || !date}
+          onClick={() => onSubmit({ type, date, notes })}
+          className="px-4 py-1.5 bg-blue-600 text-white rounded text-xs font-medium disabled:opacity-50"
+        >
+          {isPending ? "Enregistrement..." : editingEdl ? "Mettre à jour" : "Créer l'état des lieux"}
+        </button>
+        <button type="button" onClick={onCancel} className="text-xs text-slate-500 px-2 py-1.5 hover:text-slate-700">
+          Annuler
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
 // ─── Main Page ─────────────────────────────────────
 
 export default function LotDetailPage() {
@@ -136,6 +353,17 @@ export default function LotDetailPage() {
   const [selectedCoTenants, setSelectedCoTenants] = useState<string[]>([]);
   const [showAddCoTenant, setShowAddCoTenant] = useState(false);
   const [coTenantToAdd, setCoTenantToAdd] = useState("");
+  // État des lieux
+  const [showEdlForm, setShowEdlForm] = useState(false);
+  const [editingEdl, setEditingEdl] = useState<EtatDesLieux | null>(null);
+  const [edlRooms, setEdlRooms] = useState<EdlRoom[]>([
+    { name: "Entrée", condition: "BON", notes: "" },
+    { name: "Salon", condition: "BON", notes: "" },
+    { name: "Cuisine", condition: "BON", notes: "" },
+    { name: "Chambre 1", condition: "BON", notes: "" },
+    { name: "Salle de bain", condition: "BON", notes: "" },
+    { name: "WC", condition: "BON", notes: "" },
+  ]);
 
   // ─── Queries ───────────────────────────────────
 
@@ -182,6 +410,11 @@ export default function LotDetailPage() {
   });
 
   const isModuleActive = (mod: string) => modules?.some((m) => m.module === mod && m.isActive) ?? false;
+
+  const { data: etatsDesLieux = [] } = useQuery<EtatDesLieux[]>({
+    queryKey: ["etats-des-lieux", lotId],
+    queryFn: () => fetch(`/api/etats-des-lieux?lotId=${lotId}`).then((r) => r.json()),
+  });
 
   // ─── Auto-detect late rents on page load ──────
   useEffect(() => {
@@ -264,6 +497,56 @@ export default function LotDetailPage() {
       return res.json();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lots", lotId] }),
+  });
+
+  // ── États des lieux mutations ────────────────────
+  const createEdlMutation = useMutation({
+    mutationFn: async (data: { type: string; date: string; notes: string; rooms: EdlRoom[]; leaseId?: string }) => {
+      const res = await fetch("/api/etats-des-lieux", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lotId, ...data }),
+      });
+      if (!res.ok) throw new Error("Failed to create état des lieux");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["etats-des-lieux", lotId] });
+      setShowEdlForm(false);
+      setEditingEdl(null);
+      setEdlRooms([
+        { name: "Entrée", condition: "BON", notes: "" },
+        { name: "Salon", condition: "BON", notes: "" },
+        { name: "Cuisine", condition: "BON", notes: "" },
+        { name: "Chambre 1", condition: "BON", notes: "" },
+        { name: "Salle de bain", condition: "BON", notes: "" },
+        { name: "WC", condition: "BON", notes: "" },
+      ]);
+    },
+  });
+
+  const updateEdlMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<EtatDesLieux> & { rooms?: EdlRoom[] } }) => {
+      const res = await fetch(`/api/etats-des-lieux/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["etats-des-lieux", lotId] });
+      setEditingEdl(null);
+      setShowEdlForm(false);
+    },
+  });
+
+  const deleteEdlMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await fetch(`/api/etats-des-lieux/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["etats-des-lieux", lotId] }),
   });
 
   const endLeaseMutation = useMutation({
@@ -775,7 +1058,74 @@ export default function LotDetailPage() {
           )}
         </Section>
 
-        {/* 3. Rent Tracking */}
+        {/* 3. États des lieux */}
+        <Section
+          title="États des lieux"
+          icon={ClipboardList}
+          badge={etatsDesLieux.length > 0 ? <Badge>{etatsDesLieux.length}</Badge> : undefined}
+          action={
+            <button
+              onClick={() => { setEditingEdl(null); setShowEdlForm(!showEdlForm); }}
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors"
+            >
+              <Plus size={12} />
+              Nouvel état des lieux
+            </button>
+          }
+        >
+          {/* Form */}
+          {showEdlForm && (
+            <EdlForm
+              activeLease={activeLease}
+              editingEdl={editingEdl}
+              edlRooms={edlRooms}
+              setEdlRooms={setEdlRooms}
+              onSubmit={(data) => {
+                if (editingEdl) {
+                  updateEdlMutation.mutate({ id: editingEdl.id, data: { type: data.type as "ENTREE" | "SORTIE", date: data.date, notes: data.notes, rooms: edlRooms } });
+                } else {
+                  createEdlMutation.mutate({ ...data, rooms: edlRooms, leaseId: activeLease?.id });
+                }
+              }}
+              onCancel={() => { setShowEdlForm(false); setEditingEdl(null); }}
+              isPending={createEdlMutation.isPending || updateEdlMutation.isPending}
+            />
+          )}
+
+          {etatsDesLieux.length === 0 && !showEdlForm ? (
+            <div className="text-center py-6">
+              <ClipboardList size={28} className="mx-auto text-slate-300 mb-2" />
+              <p className="text-slate-500 text-sm">Aucun état des lieux enregistré</p>
+              <button
+                onClick={() => setShowEdlForm(true)}
+                className="text-xs text-blue-600 hover:underline mt-1 inline-block"
+              >
+                Créer le premier état des lieux →
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {etatsDesLieux.map((edl) => (
+                <EdlCard
+                  key={edl.id}
+                  edl={edl}
+                  onEdit={() => {
+                    setEditingEdl(edl);
+                    setEdlRooms((edl.rooms as EdlRoom[]) ?? []);
+                    setShowEdlForm(true);
+                  }}
+                  onDelete={() => { if (confirm("Supprimer cet état des lieux ?")) deleteEdlMutation.mutate(edl.id); }}
+                  onToggleStatus={() => updateEdlMutation.mutate({
+                    id: edl.id,
+                    data: { status: edl.status === "DRAFT" ? "COMPLETED" : "DRAFT" },
+                  })}
+                />
+              ))}
+            </div>
+          )}
+        </Section>
+
+        {/* 4. Rent Tracking */}
         {activeLease && (
           <Section
             title={t("lotDetail.rentTracking")}
