@@ -30,6 +30,7 @@ model User {
   accounts         Account[]
   sessions         Session[]
   enabledModules   UserModule[]
+  loans            Loan[]
 }
 
 model Account {
@@ -102,6 +103,7 @@ model Property {
   works            Work[]
   expenses         Expense[]
   complianceItems  ComplianceItem[]
+  loans            Loan[]
 
   @@index([userId])
 }
@@ -142,8 +144,9 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user   User    @relation(fields: [userId], references: [id])
-  leases Lease[]
+  user      User            @relation(fields: [userId], references: [id])
+  leases    Lease[]
+  coLeases  LeaseCoTenant[]
 
   @@index([userId])
 }
@@ -164,12 +167,25 @@ model Lease {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  lot        Lot         @relation(fields: [lotId], references: [id], onDelete: Cascade)
-  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  lot        Lot              @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  tenant     Tenant           @relation(fields: [tenantId], references: [id])
   rentEvents RentEvent[]
+  coTenants  LeaseCoTenant[]
 
   @@index([lotId])
   @@index([tenantId])
+}
+
+model LeaseCoTenant {
+  id       String @id @default(cuid())
+  leaseId  String
+  tenantId String
+
+  lease  Lease  @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([leaseId, tenantId])
+  @@index([leaseId])
 }
 
 model RentEvent {
@@ -336,6 +352,29 @@ model Investment {
 
   @@index([userId])
   @@index([assetType])
+}
+
+// ─── LOANS (mortgage / credit immobilier) ──────────
+
+model Loan {
+  id             String   @id @default(cuid())
+  userId         String
+  propertyId     String
+  lenderName     String?  // BNP, Crédit Agricole…
+  originalAmount Float    // capital emprunté
+  interestRate   Float    // taux annuel en %
+  durationMonths Int      // durée en mois
+  startDate      String   // YYYY-MM-DD
+  monthlyPayment Float?   // mensualité (calculée ou saisie)
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id])
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([propertyId])
 }
 
 // ─── NOTIFICATIONS ──────────────────────────────────

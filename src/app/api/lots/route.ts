@@ -43,8 +43,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const parsed = createLotSchema.safeParse(body);
 
+    // Extract financial defaults before lot validation
+    const { taxeFonciere, chargesCopro, ...lotBody } = body;
+
+    const parsed = createLotSchema.safeParse(lotBody);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
@@ -53,14 +56,47 @@ export async function POST(request: NextRequest) {
     const property = await db.property.findUnique({
       where: { id: parsed.data.propertyId, userId: session.user.id },
     });
-
     if (!property) {
       return NextResponse.json({ error: "Property not found" }, { status: 404 });
     }
 
-    const lot = await db.lot.create({
-      data: parsed.data,
-    });
+    const lot = await db.lot.create({ data: parsed.data });
+
+    // Auto-create taxe foncière expense (yearly TAX)
+    if (taxeFonciere && Number(taxeFonciere) > 0) {
+      await db.expense.create({
+        data: {
+          userId: session.user.id,
+          propertyId: parsed.data.propertyId,
+          lotId: lot.id,
+          title: `Taxe foncière — ${parsed.data.label}`,
+          amount: Number(taxeFonciere),
+          category: "TAX",
+          isRecurring: true,
+          frequency: "YEARLY",
+          date: new Date().toISOString().slice(0, 10),
+          notes: "Créé automatiquement à la création du lot",
+        },
+      });
+    }
+
+    // Auto-create charges copropriété expense (monthly CONDO_FEES)
+    if (chargesCopro && Number(chargesCopro) > 0) {
+      await db.expense.create({
+        data: {
+          userId: session.user.id,
+          propertyId: parsed.data.propertyId,
+          lotId: lot.id,
+          title: `Charges copropriété — ${parsed.data.label}`,
+          amount: Number(chargesCopro),
+          category: "CONDO_FEES",
+          isRecurring: true,
+          frequency: "MONTHLY",
+          date: new Date().toISOString().slice(0, 10),
+          notes: "Créé automatiquement à la création du lot",
+        },
+      });
+    }
 
     return NextResponse.json(lot, { status: 201 });
   } catch (error) {

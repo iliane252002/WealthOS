@@ -7,7 +7,7 @@ import {
   ArrowLeft, Building2, MapPin, Plus, Users, FileText, Wrench,
   Home, DoorOpen, Trash2, Layers, ChevronDown, ChevronRight,
   AlertCircle, Zap, Droplets, Shield, DollarSign, TrendingUp,
-  Upload, Eye, X, Pencil,
+  Upload, Eye, X, Pencil, CreditCard, ChevronUp,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef, useCallback } from "react";
@@ -45,6 +45,44 @@ interface PropertyDetail {
   }>;
   documents: Array<{ id: string; name: string; category: string; fileUrl: string }>;
   works: Array<{ id: string; title: string; status: string; cost: number | null }>;
+}
+
+interface Loan {
+  id: string;
+  lenderName: string | null;
+  originalAmount: number;
+  interestRate: number;
+  durationMonths: number;
+  startDate: string;
+  monthlyPayment: number | null;
+  notes: string | null;
+  createdAt: string;
+}
+
+interface CreateLoanInput {
+  propertyId: string;
+  lenderName?: string;
+  originalAmount: number;
+  interestRate: number;
+  durationMonths: number;
+  startDate: string;
+  notes?: string;
+}
+
+// ─── Loan amortization helpers ───────────────────────
+
+function calcMonthlyPayment(principal: number, annualRate: number, months: number): number {
+  const r = annualRate / 12 / 100;
+  if (r === 0) return principal / months;
+  return (principal * r) / (1 - Math.pow(1 + r, -months));
+}
+
+function calcRemainingCapital(principal: number, annualRate: number, months: number, elapsedMonths: number): number {
+  const r = annualRate / 12 / 100;
+  if (r === 0) return Math.max(0, principal - (principal / months) * elapsedMonths);
+  const pmt = calcMonthlyPayment(principal, annualRate, months);
+  const remaining = principal * Math.pow(1 + r, elapsedMonths) - pmt * ((Math.pow(1 + r, elapsedMonths) - 1) / r);
+  return Math.max(0, remaining);
 }
 
 // ─── Expandable Section ─────────────────────────────
@@ -96,8 +134,150 @@ function Badge({ children, color = "slate" }: { children: React.ReactNode; color
     emerald: "bg-emerald-50 text-emerald-600",
     amber: "bg-amber-50 text-amber-600",
     red: "bg-red-50 text-red-600",
+    purple: "bg-purple-50 text-purple-600",
   };
-  return <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${colors[color]}`}>{children}</span>;
+  return <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${colors[color] ?? colors.slate}`}>{children}</span>;
+}
+
+// ─── Loan Card ───────────────────────────────────────
+
+function LoanCard({ loan, onDelete }: { loan: Loan; onDelete: () => void }) {
+  const [showAmort, setShowAmort] = useState(false);
+
+  const startMs = new Date(loan.startDate).getTime();
+  const nowMs = Date.now();
+  const elapsedMonths = Math.max(0, Math.floor((nowMs - startMs) / (1000 * 60 * 60 * 24 * 30.44)));
+  const remainingMonths = Math.max(0, loan.durationMonths - elapsedMonths);
+  const pmt = loan.monthlyPayment ?? calcMonthlyPayment(loan.originalAmount, loan.interestRate, loan.durationMonths);
+  const totalPaid = pmt * loan.durationMonths;
+  const totalInterest = totalPaid - loan.originalAmount;
+  const capitalRemaining = calcRemainingCapital(loan.originalAmount, loan.interestRate, loan.durationMonths, elapsedMonths);
+  const progress = Math.min(100, (elapsedMonths / loan.durationMonths) * 100);
+
+  // Build yearly amortization schedule (compact)
+  const yearlySchedule: { year: number; capitalStart: number; interest: number; capital: number; capitalEnd: number }[] = [];
+  const r = loan.interestRate / 12 / 100;
+  let balance = loan.originalAmount;
+  const totalYears = Math.ceil(loan.durationMonths / 12);
+  const startYear = new Date(loan.startDate).getFullYear();
+
+  for (let y = 0; y < Math.min(totalYears, 30); y++) {
+    const monthsInYear = Math.min(12, loan.durationMonths - y * 12);
+    let yearInterest = 0;
+    let yearCapital = 0;
+    const yearStart = balance;
+
+    for (let m = 0; m < monthsInYear; m++) {
+      if (balance <= 0) break;
+      const interestPart = r === 0 ? 0 : balance * r;
+      const capitalPart = Math.min(balance, pmt - interestPart);
+      yearInterest += interestPart;
+      yearCapital += capitalPart;
+      balance = Math.max(0, balance - capitalPart);
+    }
+
+    yearlySchedule.push({
+      year: startYear + y,
+      capitalStart: yearStart,
+      interest: yearInterest,
+      capital: yearCapital,
+      capitalEnd: balance,
+    });
+
+    if (balance <= 0.01) break;
+  }
+
+  return (
+    <div className="border border-slate-200 rounded-lg overflow-hidden">
+      {/* Header */}
+      <div className="bg-slate-50 px-4 py-3 flex items-center justify-between">
+        <div>
+          <p className="font-semibold text-slate-900 text-sm">{loan.lenderName || "Crédit immobilier"}</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Démarré le {new Date(loan.startDate).toLocaleDateString("fr-FR")} · {loan.durationMonths} mois
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge color="purple">{loan.interestRate}%</Badge>
+          <button onClick={onDelete} className="p-1 text-slate-400 hover:text-red-500 transition-colors">
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="px-4 py-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+        <div>
+          <p className="text-xs text-slate-500">Montant initial</p>
+          <p className="font-semibold text-slate-900">{formatCurrency(loan.originalAmount)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-slate-500">Mensualité</p>
+          <p className="font-semibold text-blue-600">{formatCurrency(pmt)}/mois</p>
+        </div>
+        <div>
+          <p className="text-xs text-slate-500">Capital restant dû</p>
+          <p className="font-semibold text-slate-900">{formatCurrency(capitalRemaining)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-slate-500">Coût total intérêts</p>
+          <p className="font-semibold text-amber-600">{formatCurrency(totalInterest)}</p>
+        </div>
+      </div>
+
+      {/* Progress */}
+      <div className="px-4 pb-3">
+        <div className="flex justify-between text-xs text-slate-500 mb-1">
+          <span>{elapsedMonths} mois remboursés</span>
+          <span>{remainingMonths} mois restants</span>
+        </div>
+        <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-blue-500 rounded-full transition-all"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Amortization toggle */}
+      <div className="border-t border-slate-100">
+        <button
+          onClick={() => setShowAmort(!showAmort)}
+          className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+        >
+          {showAmort ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          {showAmort ? "Masquer" : "Voir"} le tableau d&apos;amortissement
+        </button>
+
+        {showAmort && (
+          <div className="overflow-x-auto max-h-64 overflow-y-auto">
+            <table className="w-full text-xs border-t border-slate-100">
+              <thead className="bg-slate-50 sticky top-0">
+                <tr>
+                  <th className="text-left px-3 py-2 text-slate-500 font-medium">Année</th>
+                  <th className="text-right px-3 py-2 text-slate-500 font-medium">Capital début</th>
+                  <th className="text-right px-3 py-2 text-slate-500 font-medium">Intérêts</th>
+                  <th className="text-right px-3 py-2 text-slate-500 font-medium">Capital remb.</th>
+                  <th className="text-right px-3 py-2 text-slate-500 font-medium">Capital fin</th>
+                </tr>
+              </thead>
+              <tbody>
+                {yearlySchedule.map((row) => (
+                  <tr key={row.year} className="border-t border-slate-100 hover:bg-slate-50">
+                    <td className="px-3 py-1.5 font-medium text-slate-700">{row.year}</td>
+                    <td className="px-3 py-1.5 text-right text-slate-600">{formatCurrency(row.capitalStart)}</td>
+                    <td className="px-3 py-1.5 text-right text-amber-600">{formatCurrency(row.interest)}</td>
+                    <td className="px-3 py-1.5 text-right text-blue-600">{formatCurrency(row.capital)}</td>
+                    <td className="px-3 py-1.5 text-right font-medium text-slate-900">{formatCurrency(row.capitalEnd)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ─── Smart Guidance ─────────────────────────────────
@@ -148,6 +328,10 @@ export default function PropertyDetailPage() {
   const queryClient = useQueryClient();
   const propertyId = params.id as string;
   const [showLotForm, setShowLotForm] = useState(false);
+  const [showLoanForm, setShowLoanForm] = useState(false);
+  // Extra lot expense fields (outside Zod schema, sent directly in body)
+  const [taxeFonciere, setTaxeFonciere] = useState("");
+  const [chargesCopro, setChargesCopro] = useState("");
   const { t } = useI18n();
 
   const { data: property, isLoading } = useQuery<PropertyDetail>({
@@ -172,15 +356,21 @@ export default function PropertyDetailPage() {
     enabled: modules?.some((m) => m.module === "LEGAL" && m.isActive) ?? false,
   });
 
+  const { data: loans = [] } = useQuery<Loan[]>({
+    queryKey: ["loans", propertyId],
+    queryFn: () => fetch(`/api/loans?propertyId=${propertyId}`).then((r) => r.json()),
+  });
+
   const isModuleActive = (mod: string) => modules?.some((m) => m.module === mod && m.isActive) ?? false;
 
+  // ── Lot form ────────────────────────────────────────
   const lotForm = useForm<CreateLotInput>({
     resolver: zodResolver(createLotSchema),
     defaultValues: { propertyId },
   });
 
   const createLotMutation = useMutation({
-    mutationFn: async (data: CreateLotInput) => {
+    mutationFn: async (data: CreateLotInput & { taxeFonciere?: number; chargesCopro?: number }) => {
       const res = await fetch("/api/lots", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -191,10 +381,21 @@ export default function PropertyDetailPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["properties", propertyId] });
+      queryClient.invalidateQueries({ queryKey: ["expenses", propertyId] });
       setShowLotForm(false);
+      setTaxeFonciere("");
+      setChargesCopro("");
       lotForm.reset({ propertyId });
     },
   });
+
+  const handleLotSubmit = (data: CreateLotInput) => {
+    createLotMutation.mutate({
+      ...data,
+      ...(taxeFonciere && Number(taxeFonciere) > 0 ? { taxeFonciere: Number(taxeFonciere) } : {}),
+      ...(chargesCopro && Number(chargesCopro) > 0 ? { chargesCopro: Number(chargesCopro) } : {}),
+    });
+  };
 
   const deleteLotMutation = useMutation({
     mutationFn: async (lotId: string) => {
@@ -204,7 +405,42 @@ export default function PropertyDetailPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["properties", propertyId] }),
   });
 
-  // Document upload
+  // ── Loan form ────────────────────────────────────────
+  const loanForm = useForm<CreateLoanInput>({
+    defaultValues: {
+      propertyId,
+      startDate: new Date().toISOString().slice(0, 10),
+      interestRate: 3.5,
+      durationMonths: 240,
+    },
+  });
+
+  const createLoanMutation = useMutation({
+    mutationFn: async (data: CreateLoanInput) => {
+      const res = await fetch("/api/loans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to create loan");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["loans", propertyId] });
+      setShowLoanForm(false);
+      loanForm.reset({ propertyId, startDate: new Date().toISOString().slice(0, 10), interestRate: 3.5, durationMonths: 240 });
+    },
+  });
+
+  const deleteLoanMutation = useMutation({
+    mutationFn: async (loanId: string) => {
+      const res = await fetch(`/api/loans/${loanId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete loan");
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["loans", propertyId] }),
+  });
+
+  // ── Document upload ───────────────────────────────────
   const [showDocUpload, setShowDocUpload] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -387,19 +623,96 @@ export default function PropertyDetailPage() {
 
             {showLotForm && (
               <form
-                onSubmit={lotForm.handleSubmit((data) => createLotMutation.mutate(data))}
-                className="bg-blue-50 rounded-lg border border-blue-200 p-3 space-y-2"
+                onSubmit={lotForm.handleSubmit(handleLotSubmit)}
+                className="bg-blue-50 rounded-lg border border-blue-200 p-4 space-y-3"
               >
+                <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Nouveau lot</p>
+
+                {/* Basic lot fields */}
                 <div className="grid grid-cols-3 gap-2">
-                  <input {...lotForm.register("label")} placeholder={t("propertyDetail.lotLabel")} className="px-2 py-1.5 border border-slate-300 rounded text-sm" />
-                  <input {...lotForm.register("surface", { valueAsNumber: true })} type="number" placeholder={t("propertyDetail.lotSurface")} className="px-2 py-1.5 border border-slate-300 rounded text-sm" />
-                  <input {...lotForm.register("rooms", { valueAsNumber: true })} type="number" placeholder={t("propertyDetail.lotRooms")} className="px-2 py-1.5 border border-slate-300 rounded text-sm" />
+                  <div>
+                    <label className="block text-xs text-slate-600 mb-1">Étiquette *</label>
+                    <input
+                      {...lotForm.register("label")}
+                      placeholder={t("propertyDetail.lotLabel")}
+                      className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm bg-white"
+                    />
+                    {lotForm.formState.errors.label && (
+                      <p className="text-red-500 text-xs mt-0.5">{lotForm.formState.errors.label.message}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-600 mb-1">Surface (m²)</label>
+                    <input
+                      {...lotForm.register("surface", { valueAsNumber: true })}
+                      type="number"
+                      placeholder={t("propertyDetail.lotSurface")}
+                      className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-600 mb-1">Pièces</label>
+                    <input
+                      {...lotForm.register("rooms", { valueAsNumber: true })}
+                      type="number"
+                      placeholder={t("propertyDetail.lotRooms")}
+                      className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm bg-white"
+                    />
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <button type="submit" disabled={createLotMutation.isPending} className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-medium">
+
+                {/* Accounting / expense fields */}
+                <div className="border-t border-blue-200 pt-3">
+                  <p className="text-xs font-medium text-slate-600 mb-2">
+                    Charges récurrentes (liées à la comptabilité)
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs text-slate-600 mb-1">
+                        Taxe foncière annuelle (€)
+                        <span className="text-slate-400 ml-1">optionnel</span>
+                      </label>
+                      <input
+                        type="number"
+                        value={taxeFonciere}
+                        onChange={(e) => setTaxeFonciere(e.target.value)}
+                        placeholder="ex : 1 200"
+                        className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm bg-white"
+                      />
+                      <p className="text-xs text-slate-400 mt-0.5">Crée une dépense TAX annuelle (PCG 6315)</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-600 mb-1">
+                        Charges copropriété mensuelles (€)
+                        <span className="text-slate-400 ml-1">optionnel</span>
+                      </label>
+                      <input
+                        type="number"
+                        value={chargesCopro}
+                        onChange={(e) => setChargesCopro(e.target.value)}
+                        placeholder="ex : 150"
+                        className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm bg-white"
+                      />
+                      <p className="text-xs text-slate-400 mt-0.5">Crée une dépense CONDO_FEES mensuelle (PCG 6135)</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="submit"
+                    disabled={createLotMutation.isPending}
+                    className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-medium disabled:opacity-50"
+                  >
                     {createLotMutation.isPending ? t("propertyDetail.creatingLot") : t("propertyDetail.createLot")}
                   </button>
-                  <button type="button" onClick={() => setShowLotForm(false)} className="text-xs text-slate-500">{t("common.cancel")}</button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowLotForm(false); setTaxeFonciere(""); setChargesCopro(""); }}
+                    className="text-xs text-slate-500 px-2 py-1.5 hover:text-slate-700"
+                  >
+                    {t("common.cancel")}
+                  </button>
                 </div>
               </form>
             )}
@@ -460,7 +773,132 @@ export default function PropertyDetailPage() {
           </div>
         </Section>
 
-        {/* 3. Documents */}
+        {/* 3. Loans / Crédit */}
+        <Section
+          title="Crédit & Financement"
+          icon={CreditCard}
+          badge={loans.length > 0 ? <Badge color="purple">{loans.length}</Badge> : undefined}
+        >
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowLoanForm(!showLoanForm)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-xs font-medium"
+              >
+                {showLoanForm ? <X size={14} /> : <Plus size={14} />}
+                {showLoanForm ? "Annuler" : "Ajouter un crédit"}
+              </button>
+            </div>
+
+            {showLoanForm && (
+              <form
+                onSubmit={loanForm.handleSubmit((data) => createLoanMutation.mutate(data))}
+                className="bg-purple-50 rounded-lg border border-purple-200 p-4 space-y-3"
+              >
+                <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide">Nouveau crédit immobilier</p>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-slate-600 mb-1">Établissement prêteur</label>
+                    <input
+                      {...loanForm.register("lenderName")}
+                      placeholder="ex : BNP Paribas"
+                      className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-600 mb-1">Montant emprunté (€) *</label>
+                    <input
+                      {...loanForm.register("originalAmount", { valueAsNumber: true })}
+                      type="number"
+                      placeholder="ex : 200 000"
+                      className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-600 mb-1">Taux annuel (%) *</label>
+                    <input
+                      {...loanForm.register("interestRate", { valueAsNumber: true })}
+                      type="number"
+                      step="0.01"
+                      placeholder="ex : 3.5"
+                      className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-600 mb-1">Durée (mois) *</label>
+                    <input
+                      {...loanForm.register("durationMonths", { valueAsNumber: true })}
+                      type="number"
+                      placeholder="ex : 240 (20 ans)"
+                      className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-600 mb-1">Date de début *</label>
+                    <input
+                      {...loanForm.register("startDate")}
+                      type="date"
+                      className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-600 mb-1">Notes</label>
+                    <input
+                      {...loanForm.register("notes")}
+                      placeholder="Assurance, conditions..."
+                      className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="submit"
+                    disabled={createLoanMutation.isPending}
+                    className="px-4 py-1.5 bg-purple-600 text-white rounded text-xs font-medium disabled:opacity-50"
+                  >
+                    {createLoanMutation.isPending ? "Enregistrement..." : "Enregistrer le crédit"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowLoanForm(false)}
+                    className="text-xs text-slate-500 px-2 py-1.5 hover:text-slate-700"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {loans.length === 0 && !showLoanForm ? (
+              <div className="text-center py-6">
+                <CreditCard size={28} className="mx-auto text-slate-300 mb-2" />
+                <p className="text-slate-500 text-sm">Aucun crédit enregistré pour ce bien</p>
+                <button
+                  onClick={() => setShowLoanForm(true)}
+                  className="text-xs text-purple-600 hover:underline mt-1 inline-block"
+                >
+                  Ajouter un crédit →
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {loans.map((loan) => (
+                  <LoanCard
+                    key={loan.id}
+                    loan={loan}
+                    onDelete={() => {
+                      if (confirm("Supprimer ce crédit ?")) deleteLoanMutation.mutate(loan.id);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </Section>
+
+        {/* 4. Documents */}
         <Section
           title={t("propertyDetail.documents")}
           icon={FileText}
@@ -541,7 +979,7 @@ export default function PropertyDetailPage() {
           )}
         </Section>
 
-        {/* 4. Expenses (if module active) */}
+        {/* 5. Expenses (if module active) */}
         {isModuleActive("EXPENSES") && (
           <Section title={t("propertyDetail.expenses")} icon={DollarSign}>
             {!expenses || expenses.length === 0 ? (
@@ -565,7 +1003,7 @@ export default function PropertyDetailPage() {
           </Section>
         )}
 
-        {/* 5. Works (if module active) */}
+        {/* 6. Works (if module active) */}
         {isModuleActive("WORKS") && (
           <Section
             title={t("propertyDetail.works")}
@@ -593,7 +1031,7 @@ export default function PropertyDetailPage() {
           </Section>
         )}
 
-        {/* 6. Legal & Compliance (if module active) */}
+        {/* 7. Legal & Compliance (if module active) */}
         {isModuleActive("LEGAL") && (
           <Section title={t("propertyDetail.legal")} icon={Shield}>
             {!complianceItems || complianceItems.length === 0 ? (
@@ -615,7 +1053,7 @@ export default function PropertyDetailPage() {
           </Section>
         )}
 
-        {/* 7. Financial Overview */}
+        {/* 8. Financial Overview */}
         {totalLots > 0 && (
           <Section title={t("propertyDetail.financialView")} icon={TrendingUp}>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -631,6 +1069,19 @@ export default function PropertyDetailPage() {
                 <div>
                   <span className="text-slate-500">{t("propertyDetail.currentValue")}</span>
                   <p className="text-lg font-bold text-slate-900 mt-0.5">{formatCurrency(property.currentValue)}</p>
+                </div>
+              )}
+              {loans.length > 0 && (
+                <div>
+                  <span className="text-slate-500">Mensualités crédit</span>
+                  <p className="text-lg font-bold text-purple-600 mt-0.5">
+                    {formatCurrency(
+                      loans.reduce((sum, loan) => {
+                        const pmt = loan.monthlyPayment ?? calcMonthlyPayment(loan.originalAmount, loan.interestRate, loan.durationMonths);
+                        return sum + pmt;
+                      }, 0)
+                    )}<span className="text-xs text-slate-400 font-normal">/mo</span>
+                  </p>
                 </div>
               )}
             </div>

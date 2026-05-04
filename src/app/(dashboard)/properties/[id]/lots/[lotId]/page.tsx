@@ -19,6 +19,10 @@ import { useI18n, type TranslationKey } from "@/lib/i18n";
 
 // ─── Types ─────────────────────────────────────────
 
+interface CoTenant {
+  tenant: { id: string; firstName: string; lastName: string };
+}
+
 interface LotDetail {
   id: string;
   propertyId: string;
@@ -39,6 +43,7 @@ interface LotDetail {
     deposit: number | null;
     paymentDayOfMonth: number;
     tenant: { id: string; firstName: string; lastName: string; email: string | null; phone: string | null };
+    coTenants: CoTenant[];
     rentEvents: Array<{
       id: string;
       dueDate: string;
@@ -127,6 +132,10 @@ export default function LotDetailPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Co-tenants (colocation)
+  const [selectedCoTenants, setSelectedCoTenants] = useState<string[]>([]);
+  const [showAddCoTenant, setShowAddCoTenant] = useState(false);
+  const [coTenantToAdd, setCoTenantToAdd] = useState("");
 
   // ─── Queries ───────────────────────────────────
 
@@ -208,14 +217,53 @@ export default function LotDetailPage() {
         body: JSON.stringify(data),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Failed"); }
+      return res.json() as Promise<{ id: string }>;
+    },
+    onSuccess: async (lease) => {
+      // Add co-tenants if any were selected
+      for (const tenantId of selectedCoTenants) {
+        await fetch(`/api/leases/${lease.id}/co-tenants`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tenantId }),
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["lots", lotId] });
+      queryClient.invalidateQueries({ queryKey: ["properties", propertyId] });
+      setShowLeaseForm(false);
+      setSelectedCoTenants([]);
+      leaseForm.reset({ lotId, paymentDayOfMonth: 1, charges: 0, notifyDaysBefore: 3 });
+    },
+  });
+
+  const addCoTenantMutation = useMutation({
+    mutationFn: async ({ leaseId, tenantId }: { leaseId: string; tenantId: string }) => {
+      const res = await fetch(`/api/leases/${leaseId}/co-tenants`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId }),
+      });
+      if (!res.ok) throw new Error("Failed to add co-tenant");
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lots", lotId] });
-      queryClient.invalidateQueries({ queryKey: ["properties", propertyId] });
-      setShowLeaseForm(false);
-      leaseForm.reset({ lotId, paymentDayOfMonth: 1, charges: 0, notifyDaysBefore: 3 });
+      setShowAddCoTenant(false);
+      setCoTenantToAdd("");
     },
+  });
+
+  const removeCoTenantMutation = useMutation({
+    mutationFn: async ({ leaseId, tenantId }: { leaseId: string; tenantId: string }) => {
+      const res = await fetch(`/api/leases/${leaseId}/co-tenants`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId }),
+      });
+      if (!res.ok) throw new Error("Failed to remove co-tenant");
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lots", lotId] }),
   });
 
   const endLeaseMutation = useMutation({
@@ -456,18 +504,81 @@ export default function LotDetailPage() {
             <div className="space-y-4">
               {/* Tenant info */}
               <div className="bg-blue-50 rounded-lg border border-blue-100 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
                     <p className="text-xs text-blue-500 uppercase font-semibold mb-1">{t("lotDetail.tenant")}</p>
                     <p className="font-bold text-slate-900 text-lg">{activeLease.tenant.firstName} {activeLease.tenant.lastName}</p>
                     <div className="text-sm text-slate-600 mt-1 space-y-0.5">
                       {activeLease.tenant.email && <p>{activeLease.tenant.email}</p>}
                       {activeLease.tenant.phone && <p>{activeLease.tenant.phone}</p>}
                     </div>
+
+                    {/* Co-tenants */}
+                    {(activeLease.coTenants?.length > 0 || showAddCoTenant) && (
+                      <div className="mt-3 pt-3 border-t border-blue-200">
+                        <p className="text-xs text-blue-500 uppercase font-semibold mb-2">Co-locataires</p>
+                        <div className="space-y-1">
+                          {activeLease.coTenants?.map((ct) => (
+                            <div key={ct.tenant.id} className="flex items-center justify-between bg-white rounded px-2 py-1 text-sm">
+                              <span className="text-slate-700">{ct.tenant.firstName} {ct.tenant.lastName}</span>
+                              <button
+                                onClick={() => removeCoTenantMutation.mutate({ leaseId: activeLease.id, tenantId: ct.tenant.id })}
+                                className="text-slate-400 hover:text-red-500 transition-colors"
+                              >
+                                <X size={13} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Add co-tenant */}
+                    <div className="mt-2">
+                      {showAddCoTenant ? (
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={coTenantToAdd}
+                            onChange={(e) => setCoTenantToAdd(e.target.value)}
+                            className="flex-1 px-2 py-1 border border-blue-200 rounded text-sm bg-white"
+                          >
+                            <option value="">Sélectionner...</option>
+                            {tenants
+                              ?.filter((tn) =>
+                                tn.id !== activeLease.tenant.id &&
+                                !activeLease.coTenants?.some((ct) => ct.tenant.id === tn.id)
+                              )
+                              .map((tn) => (
+                                <option key={tn.id} value={tn.id}>{tn.firstName} {tn.lastName}</option>
+                              ))}
+                          </select>
+                          <button
+                            onClick={() => {
+                              if (coTenantToAdd) addCoTenantMutation.mutate({ leaseId: activeLease.id, tenantId: coTenantToAdd });
+                            }}
+                            disabled={!coTenantToAdd || addCoTenantMutation.isPending}
+                            className="px-2 py-1 bg-blue-600 text-white rounded text-xs font-medium disabled:opacity-50"
+                          >
+                            Ajouter
+                          </button>
+                          <button onClick={() => { setShowAddCoTenant(false); setCoTenantToAdd(""); }} className="text-xs text-slate-400 hover:text-slate-600">
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setShowAddCoTenant(true)}
+                          className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 mt-1"
+                        >
+                          <Plus size={12} />
+                          Ajouter un co-locataire
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <button
                     onClick={() => { if (confirm("End this lease?")) endLeaseMutation.mutate(activeLease.id); }}
-                    className="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+                    className="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors shrink-0"
                   >
                     {t("lotDetail.endLease")}
                   </button>
@@ -583,6 +694,53 @@ export default function LotDetailPage() {
                       />
                     </div>
                   </div>
+
+                  {/* Co-tenants (colocation) */}
+                  {tenants && tenants.length > 1 && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Co-locataires
+                        <span className="text-slate-400 font-normal ml-1">(optionnel)</span>
+                      </label>
+                      <div className="space-y-1">
+                        {selectedCoTenants.map((id) => {
+                          const tn = tenants.find((t) => t.id === id);
+                          return tn ? (
+                            <div key={id} className="flex items-center justify-between bg-blue-50 rounded px-2 py-1 text-sm">
+                              <span>{tn.firstName} {tn.lastName}</span>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedCoTenants((prev) => prev.filter((x) => x !== id))}
+                                className="text-slate-400 hover:text-red-500"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ) : null;
+                        })}
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value && !selectedCoTenants.includes(e.target.value)) {
+                              setSelectedCoTenants((prev) => [...prev, e.target.value]);
+                            }
+                          }}
+                          className="w-full px-3 py-2 border border-dashed border-slate-300 rounded-lg text-sm text-slate-500 bg-slate-50"
+                        >
+                          <option value="">+ Ajouter un co-locataire...</option>
+                          {tenants
+                            .filter((tn) => {
+                              const primaryId = leaseForm.getValues("tenantId");
+                              return tn.id !== primaryId && !selectedCoTenants.includes(tn.id);
+                            })
+                            .map((tn) => (
+                              <option key={tn.id} value={tn.id}>{tn.firstName} {tn.lastName}</option>
+                            ))
+                          }
+                        </select>
+                      </div>
+                    </div>
+                  )}
 
                   {createLeaseMutation.isError && (
                     <p className="text-red-500 text-sm">{(createLeaseMutation.error as Error).message}</p>

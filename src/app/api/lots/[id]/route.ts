@@ -20,7 +20,11 @@ export async function GET(
       include: {
         property: { select: { id: true, name: true, userId: true } },
         leases: {
-          include: { tenant: true, rentEvents: true },
+          include: {
+            tenant: true,
+            rentEvents: true,
+            coTenants: { include: { tenant: true } },
+          },
         },
         documents: true,
         works: true,

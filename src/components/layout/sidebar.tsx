@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Receipt,
   BookOpen,
+  Percent,
 } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -42,6 +43,7 @@ const moduleNavItems: { labelKey: TranslationKey; href: string; icon: typeof Lay
 const otherNavItems: { labelKey: TranslationKey; href: string; icon: typeof LayoutDashboard }[] = [
   { labelKey: "nav.investments", href: "/investments", icon: TrendingUp },
   { labelKey: "nav.accounting", href: "/comptabilite", icon: BookOpen },
+  { labelKey: "nav.fiscalite", href: "/fiscalite", icon: Percent },
   { labelKey: "nav.timeline", href: "/timeline", icon: Clock },
   { labelKey: "nav.notifications", href: "/notifications", icon: Bell },
 ];
