@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { createTransactionSchema } from "@/lib/validators/transaction";
+import { amountTransactionSchema, createTransactionSchema } from "@/lib/validators/transaction";
 import { computePosition, recomputeInvestment } from "@/lib/transactions";
-import { syncInvestmentPrices } from "@/lib/market";
+import { isoDate, priceOnDate, syncInvestmentPrices } from "@/lib/market";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -39,7 +39,41 @@ export async function POST(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Investment not found" }, { status: 404 });
     }
 
-    const parsed = createTransactionSchema.safeParse(await request.json());
+    const body = await request.json();
+
+    // Saisie simple (montant + date) : on déduit quantité et prix du cours ce jour-là
+    if (body && body.amount !== undefined && body.quantity === undefined) {
+      const simple = amountTransactionSchema.safeParse(body);
+      if (!simple.success) {
+        return NextResponse.json({ error: simple.error.flatten() }, { status: 400 });
+      }
+      if (simple.data.date > isoDate(new Date())) {
+        return NextResponse.json({ error: "La date ne peut pas être dans le futur" }, { status: 400 });
+      }
+      let price: number;
+      if (investment.ticker) {
+        try {
+          price = (await priceOnDate(investment.ticker, simple.data.date, investment.currency || "EUR")).price;
+        } catch {
+          return NextResponse.json(
+            { error: `Cours introuvable pour « ${investment.ticker} » à cette date. Saisissez la quantité et le prix.` },
+            { status: 400 }
+          );
+        }
+      } else {
+        // Placement non coté : on garde la valeur unitaire actuelle
+        price = investment.currentPrice ?? investment.buyPrice;
+      }
+      const { amount, ...rest } = simple.data;
+      body.quantity = amount / price;
+      body.price = price;
+      body.type = rest.type;
+      body.date = rest.date;
+      body.fees = rest.fees;
+      delete body.amount;
+    }
+
+    const parsed = createTransactionSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }

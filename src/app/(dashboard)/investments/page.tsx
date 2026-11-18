@@ -2,30 +2,15 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatCurrency, formatPercent, fetchJson } from "@/lib/utils";
-import { useState, useRef, useEffect, useCallback, Fragment } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createInvestmentSchema, type CreateInvestmentInput, assetTypes } from "@/lib/validators/investment";
-import { TrendingUp, Plus, X, Search, Pencil, Trash2, Loader2, RefreshCw, ChevronDown, ChevronRight } from "lucide-react";
+import { TrendingUp, Plus, X, Pencil, Trash2, Loader2, RefreshCw, ChevronDown, ChevronRight } from "lucide-react";
 import { PortfolioChart, PositionChart, Sparkline, type PortfolioPoint, type PricePoint, type Trade } from "@/components/investments/charts";
 import { TransactionsPanel } from "@/components/investments/transactions-panel";
+import { AddPositionForm } from "@/components/investments/add-position-form";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
-
-interface StockResult {
-  symbol: string;
-  name: string;
-  type: string;
-  exchange: string;
-}
-
-function useDebounce(value: string, delay: number) {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-  return debounced;
-}
 
 interface Investment {
   id: string;
@@ -76,6 +61,7 @@ const RANGES = [
 ];
 
 const money = (value: number, currency = "EUR") => formatCurrency(value, currency || "EUR");
+const fmtShares = (q: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: q < 1 ? 6 : q < 100 ? 3 : 2 }).format(q);
 
 const toFormValues = (inv: Investment): CreateInvestmentInput => ({
   name: inv.name,
@@ -127,64 +113,15 @@ export default function InvestmentsPage() {
     retry: 1,
   });
 
-  const [stockSearch, setStockSearch] = useState("");
-  const [showStockResults, setShowStockResults] = useState(false);
-  const stockDropdownRef = useRef<HTMLDivElement>(null);
-  const debouncedSearch = useDebounce(stockSearch, 300);
-
   const form = useForm<CreateInvestmentInput>({
     resolver: zodResolver(createInvestmentSchema),
     defaultValues: { currency: "EUR" },
   });
 
-  const { data: stockResults = [] } = useQuery<StockResult[]>({
-    queryKey: ["stock-search", debouncedSearch],
-    queryFn: () =>
-      fetch(`/api/stocks/search?q=${encodeURIComponent(debouncedSearch)}`).then((r) => r.json()),
-    enabled: debouncedSearch.length >= 2,
-  });
-
-  const selectStock = useCallback(
-    (stock: StockResult) => {
-      form.setValue("name", stock.name);
-      form.setValue("ticker", stock.symbol);
-      const typeMap: Record<string, string> = {
-        EQUITY: "STOCK",
-        ETF: "ETF",
-        MUTUALFUND: "FUND",
-        CRYPTOCURRENCY: "CRYPTO",
-      };
-      form.setValue(
-        "assetType",
-        (typeMap[stock.type] || "OTHER") as CreateInvestmentInput["assetType"]
-      );
-      setStockSearch("");
-      setShowStockResults(false);
-    },
-    [form]
-  );
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (
-        stockDropdownRef.current &&
-        !stockDropdownRef.current.contains(e.target as Node)
-      ) {
-        setShowStockResults(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
   useEffect(() => {
     if (mode === "edit" && editingId) {
       const item = (investments || []).find((inv) => inv.id === editingId);
       if (item) form.reset(toFormValues(item));
-    } else if (mode === "create") {
-      form.reset({ currency: "EUR" });
-      setStockSearch("");
     }
   }, [mode, editingId, investments, form]);
 
@@ -203,7 +140,6 @@ export default function InvestmentsPage() {
       queryClient.invalidateQueries({ queryKey: ["investments-history"] });
       setMode("none");
       form.reset({ currency: "EUR" });
-      setStockSearch("");
     },
   });
 
@@ -248,7 +184,6 @@ export default function InvestmentsPage() {
     setMode("none");
     setEditingId(null);
     form.reset({ currency: "EUR" });
-    setStockSearch("");
   };
 
   const portfolio = (investments || []).reduce(
@@ -439,190 +374,17 @@ export default function InvestmentsPage() {
         )}
       </section>
 
-      {/* Create mode: full form with stock search */}
       {mode === "create" && (
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4"
-        >
-          {/* Stock Search */}
-          <div ref={stockDropdownRef} className="relative">
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              <Search size={14} className="inline mr-1" />
-              {t("investments.searchStock")}
-            </label>
-            <input
-              value={stockSearch}
-              onChange={(e) => {
-                setStockSearch(e.target.value);
-                setShowStockResults(true);
-              }}
-              onFocus={() => {
-                if (stockSearch.length >= 2) setShowStockResults(true);
-              }}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder={t("investments.searchPlaceholder")}
-            />
-            {showStockResults && stockResults.length > 0 && (
-              <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-                {stockResults.map((stock) => (
-                  <button
-                    key={stock.symbol}
-                    type="button"
-                    onClick={() => selectStock(stock)}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-center justify-between border-b border-slate-50 last:border-0 transition-colors"
-                  >
-                    <div>
-                      <span className="font-medium text-slate-900 text-sm">{stock.name}</span>
-                      <span className="text-xs text-slate-400 ml-2">{stock.exchange}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">
-                        {stock.symbol}
-                      </span>
-                      <span className="text-xs text-slate-400">{stock.type}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                {t("investments.name")}
-              </label>
-              <input
-                {...form.register("name")}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g. LVMH"
-              />
-              {form.formState.errors.name && (
-                <p className="text-red-500 text-xs mt-1">{form.formState.errors.name.message}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                {t("investments.assetType")}
-              </label>
-              <select
-                {...form.register("assetType")}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">{t("investments.selectType")}</option>
-                {assetTypes.map((at) => (
-                  <option key={at} value={at}>{t(assetTypeKeys[at])}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                {t("investments.quantity")}
-              </label>
-              <input
-                {...form.register("quantity", { valueAsNumber: true })}
-                type="number"
-                step="0.000001"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                {t("investments.buyPrice")}
-              </label>
-              <input
-                {...form.register("buyPrice", { valueAsNumber: true })}
-                type="number"
-                step="0.01"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              {form.formState.errors.buyPrice && (
-                <p className="text-red-500 text-xs mt-1">{form.formState.errors.buyPrice.message}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                {t("investments.currentPrice")}
-              </label>
-              <input
-                {...form.register("currentPrice", { valueAsNumber: true })}
-                type="number"
-                step="0.01"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                {t("investments.ticker")}
-              </label>
-              <input
-                {...form.register("ticker")}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="MC.PA"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                {t("investments.purchaseDate")}
-              </label>
-              <input
-                type="date"
-                {...form.register("purchaseDate")}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                {t("investments.broker")}
-              </label>
-              <input
-                {...form.register("broker")}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                {t("investments.account")}
-              </label>
-              <input
-                {...form.register("accountName")}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder={t("investments.accountPlaceholder")}
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-1">
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="px-4 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium"
-            >
-              {t("investments.cancel")}
-            </button>
-            <button
-              type="submit"
-              disabled={isPending}
-              className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors disabled:opacity-50 text-sm font-medium"
-            >
-              {isPending ? (
-                <span className="flex items-center gap-2">
-                  <Loader2 size={14} className="animate-spin" />
-                  {t("investments.adding")}
-                </span>
-              ) : (
-                t("investments.addPosition")
-              )}
-            </button>
-          </div>
-        </form>
+        <AddPositionForm
+          assetTypeLabel={(type) => (assetTypeKeys[type] ? t(assetTypeKeys[type]) : type)}
+          onCancel={handleCancel}
+          onCreated={() => {
+            queryClient.invalidateQueries({ queryKey: ["investments"] });
+            queryClient.invalidateQueries({ queryKey: ["investments-history"] });
+            queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+            setMode("none");
+          }}
+        />
       )}
 
       {/* Edit mode: simplified form without stock search */}
@@ -800,28 +562,28 @@ export default function InvestmentsPage() {
           <table className="w-full text-sm [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="text-left px-6 py-3 font-medium text-slate-500">
+                <th className="text-left px-4 py-3 font-medium text-slate-500">
                   {t("investments.asset")}
                 </th>
-                <th className="text-left px-6 py-3 font-medium text-slate-500">
+                <th className="text-left px-4 py-3 font-medium text-slate-500">
                   {t("investments.type")}
                 </th>
-                <th className="text-right px-6 py-3 font-medium text-slate-500">
-                  {t("investments.qty")}
+                <th className="text-right px-4 py-3 font-medium text-slate-500">
+                  {t("investments.invested")}
                 </th>
-                <th className="text-right px-6 py-3 font-medium text-slate-500">
-                  {t("investments.pru")}
+                <th className="text-right px-4 py-3 font-medium text-slate-500">
+                  {t("investments.value")}
                 </th>
-                <th className="text-right px-6 py-3 font-medium text-slate-500">
+                <th className="text-right px-4 py-3 font-medium text-slate-500">
                   {t("investments.price")}
                 </th>
-                <th className="text-left px-6 py-3 font-medium text-slate-500">
+                <th className="text-left px-4 py-3 font-medium text-slate-500">
                   {t("investments.trend")} · {RANGES.find((r) => r.key === range)?.[locale === "fr" ? "fr" : "en"]}
                 </th>
-                <th className="text-right px-6 py-3 font-medium text-slate-500">
+                <th className="text-right px-4 py-3 font-medium text-slate-500">
                   {t("investments.gainLoss")}
                 </th>
-                <th className="text-center px-6 py-3 font-medium text-slate-500">
+                <th className="text-center px-4 py-3 font-medium text-slate-500">
                   {t("investments.actions")}
                 </th>
               </tr>
@@ -846,7 +608,7 @@ export default function InvestmentsPage() {
                       editingId === inv.id || expanded ? "bg-slate-50" : ""
                     }`}
                   >
-                    <td className="px-6 py-3">
+                    <td className="px-4 py-3">
                       <div className="flex items-start gap-2">
                         <span className="mt-0.5 w-3.5 text-slate-400">
                           {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -865,20 +627,30 @@ export default function InvestmentsPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-3">
+                    <td className="px-4 py-3">
                       <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
                         {t(assetTypeKeys[inv.assetType]) || inv.assetType}
                       </span>
                     </td>
-                    <td className="px-6 py-3 text-right text-slate-600 tabular-nums">{qty}</td>
-                    <td className="px-6 py-3 text-right text-slate-600 tabular-nums">
-                      {money(inv.buyPrice, inv.currency)}
+                    <td className="px-4 py-3 text-right text-slate-600 tabular-nums">{closed ? "—" : money(cost, inv.currency)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-medium text-slate-900">
+                      {closed ? "—" : money(current, inv.currency)}
                     </td>
-                    <td className="px-6 py-3 text-right tabular-nums">
-                      <span className="font-medium text-slate-900">{money(inv.currentPrice || inv.buyPrice, inv.currency)}</span>
-                      {!inv.ticker && <p className="text-[11px] text-slate-400">{t("investments.manualPrice")}</p>}
+                    <td className="px-4 py-3 text-right tabular-nums">
+                      {inv.ticker ? (
+                        <>
+                          <span className="text-slate-700">{money(inv.currentPrice || inv.buyPrice, inv.currency)}</span>
+                          {!closed && (
+                            <p className="text-[11px] text-slate-400">
+                              {fmtShares(qty)} {t("investments.shares")} · {t("investments.pru")} {money(inv.buyPrice, inv.currency)}
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-[12px] text-slate-400">{t("investments.manualPrice")}</span>
+                      )}
                     </td>
-                    <td className="px-6 py-3">
+                    <td className="px-4 py-3">
                       {tracked ? (
                         <div className="flex items-center gap-2">
                           <Sparkline points={h!.series} up={(change ?? 0) >= 0} />
@@ -892,7 +664,7 @@ export default function InvestmentsPage() {
                         <span className="text-slate-300">—</span>
                       )}
                     </td>
-                    <td className="px-6 py-3 text-right tabular-nums">
+                    <td className="px-4 py-3 text-right tabular-nums">
                       {closed ? (
                         <>
                           <span className={`font-medium ${(h?.realized ?? 0) >= 0 ? "text-emerald-600" : "text-red-600"}`}>
@@ -911,7 +683,7 @@ export default function InvestmentsPage() {
                         </>
                       )}
                     </td>
-                    <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={() => {
@@ -935,7 +707,7 @@ export default function InvestmentsPage() {
                   </tr>
                   {expanded && (
                     <tr className="border-b border-slate-100 bg-slate-50">
-                      <td colSpan={8} className="px-6 pb-5 pt-1 space-y-3 whitespace-normal">
+                      <td colSpan={8} className="px-4 pb-5 pt-1 space-y-3 whitespace-normal">
                         {tracked && (
                           <div className="bg-white border border-slate-200 rounded-md px-2 pt-3">
                             <PositionChart

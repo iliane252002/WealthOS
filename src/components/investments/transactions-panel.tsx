@@ -49,7 +49,9 @@ export function TransactionsPanel({
     retry: 1,
   });
 
-  const [form, setForm] = useState({ type: "BUY", date: isoToday(), quantity: "", price: "", fees: "" });
+  const [form, setForm] = useState({ type: "BUY", date: isoToday(), amount: "", quantity: "", price: "", fees: "" });
+  const [byAmount, setByAmount] = useState(true);
+  const num = (v: string) => Number(v.replace(/\s/g, "").replace(",", "."));
   const [error, setError] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
@@ -75,16 +77,15 @@ export function TransactionsPanel({
         body: JSON.stringify({
           type: form.type,
           date: form.date,
-          quantity: Number(form.quantity.replace(",", ".")),
-          price: Number(form.price.replace(",", ".")),
-          fees: form.fees ? Number(form.fees.replace(",", ".")) : 0,
+          ...(byAmount ? { amount: num(form.amount) } : { quantity: num(form.quantity), price: num(form.price) }),
+          fees: form.fees ? num(form.fees) : 0,
         }),
       });
       if (!res.ok) throw new Error(await readError(res));
     },
     onSuccess: () => {
       setError(null);
-      setForm((f) => ({ ...f, quantity: "", price: "", fees: "" }));
+      setForm((f) => ({ ...f, amount: "", quantity: "", price: "", fees: "" }));
       refresh();
     },
     onError: (e: Error) => setError(e.message),
@@ -264,34 +265,53 @@ export function TransactionsPanel({
             className={inputCls}
           />
         </div>
-        <div className="w-28">
-          <label htmlFor={`tx-qty-${investmentId}`} className="block text-[11px] text-slate-500 mb-1">
-            {t("investments.quantity")}
-          </label>
-          <input
-            id={`tx-qty-${investmentId}`}
-            inputMode="decimal"
-            required
-            value={form.quantity}
-            onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-            className={inputCls}
-            placeholder="10"
-          />
-        </div>
-        <div className="w-32">
-          <label htmlFor={`tx-price-${investmentId}`} className="block text-[11px] text-slate-500 mb-1">
-            {t("investments.unitPrice")} ({currency})
-          </label>
-          <input
-            id={`tx-price-${investmentId}`}
-            inputMode="decimal"
-            required
-            value={form.price}
-            onChange={(e) => setForm({ ...form, price: e.target.value })}
-            className={inputCls}
-            placeholder={currentPrice ? String(Math.round(currentPrice * 100) / 100) : ""}
-          />
-        </div>
+        {byAmount ? (
+          <div className="w-36">
+            <label htmlFor={`tx-amount-${investmentId}`} className="block text-[11px] text-slate-500 mb-1">
+              {t("investments.amountIn")} ({currency})
+            </label>
+            <input
+              id={`tx-amount-${investmentId}`}
+              inputMode="decimal"
+              required
+              value={form.amount}
+              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              className={inputCls}
+              placeholder="1 000"
+            />
+          </div>
+        ) : (
+          <>
+            <div className="w-28">
+              <label htmlFor={`tx-qty-${investmentId}`} className="block text-[11px] text-slate-500 mb-1">
+                {t("investments.quantity")}
+              </label>
+              <input
+                id={`tx-qty-${investmentId}`}
+                inputMode="decimal"
+                required
+                value={form.quantity}
+                onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                className={inputCls}
+                placeholder="10"
+              />
+            </div>
+            <div className="w-32">
+              <label htmlFor={`tx-price-${investmentId}`} className="block text-[11px] text-slate-500 mb-1">
+                {t("investments.unitPrice")} ({currency})
+              </label>
+              <input
+                id={`tx-price-${investmentId}`}
+                inputMode="decimal"
+                required
+                value={form.price}
+                onChange={(e) => setForm({ ...form, price: e.target.value })}
+                className={inputCls}
+                placeholder={currentPrice ? String(Math.round(currentPrice * 100) / 100) : ""}
+              />
+            </div>
+          </>
+        )}
         <div className="w-24">
           <label htmlFor={`tx-fees-${investmentId}`} className="block text-[11px] text-slate-500 mb-1">
             {t("investments.fees")}
@@ -312,6 +332,13 @@ export function TransactionsPanel({
         >
           {addMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
           {t("investments.addOperation")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setByAmount(!byAmount)}
+          className="h-8 px-1 text-[12px] text-blue-600 hover:text-blue-800"
+        >
+          {byAmount ? t("investments.enterQtyPrice") : t("investments.enterAmount")}
         </button>
       </form>
       {error && <p className="text-[12px] text-red-600">{error}</p>}

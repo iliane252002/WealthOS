@@ -178,3 +178,33 @@ export async function storedRateToEur(currency: string | null | undefined): Prom
   const row = await db.priceHistory.findFirst({ where: { symbol: fxSymbol(c) }, orderBy: { date: "desc" } });
   return row?.close ?? 1;
 }
+
+/**
+ * Cours d'un symbole à une date donnée (dernière clôture connue ce jour-là ou avant),
+ * converti dans la devise demandée. Charge l'historique nécessaire si besoin.
+ */
+export async function priceOnDate(symbol: string, date: string, targetCurrency = "EUR") {
+  // Une semaine de marge pour les week-ends et jours fériés
+  const from = addDays(date, -7);
+  await syncSymbol(symbol, from);
+
+  const row =
+    (await db.priceHistory.findFirst({ where: { symbol, date: { lte: date } }, orderBy: { date: "desc" } })) ??
+    (await db.priceHistory.findFirst({ where: { symbol, date: { gte: date } }, orderBy: { date: "asc" } }));
+  if (!row) throw new Error(`Aucun cours trouvé pour ${symbol}`);
+
+  const rateAt = async (currency: string) => {
+    if (currency === "EUR") return 1;
+    const fx = fxSymbol(currency);
+    await syncSymbol(fx, from);
+    const r =
+      (await db.priceHistory.findFirst({ where: { symbol: fx, date: { lte: row.date } }, orderBy: { date: "desc" } })) ??
+      (await db.priceHistory.findFirst({ where: { symbol: fx }, orderBy: { date: "asc" } }));
+    if (!r) throw new Error(`Taux de change ${currency}/EUR indisponible`);
+    return r.close;
+  };
+
+  const target = targetCurrency.toUpperCase();
+  const price = row.currency === target ? row.close : (row.close * (await rateAt(row.currency))) / (await rateAt(target));
+  return { price, date: row.date, quoteCurrency: row.currency };
+}

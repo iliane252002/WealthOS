@@ -11,6 +11,15 @@ export const createTransactionSchema = z.object({
   notes: z.string().optional(),
 });
 
+/** Saisie simple : un montant et une date ; quantité et prix viennent du cours ce jour-là. */
+export const amountTransactionSchema = z.object({
+  type: z.enum(transactionTypes),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide"),
+  amount: z.number().positive("Le montant doit être positif"),
+  fees: z.number().min(0).default(0),
+  notes: z.string().optional(),
+});
+
 export const updateTransactionSchema = createTransactionSchema.partial();
 
 export type CreateTransactionInput = z.infer<typeof createTransactionSchema>;
