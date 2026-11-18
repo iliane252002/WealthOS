@@ -13,6 +13,7 @@ type Details = {
   radius?: number | null;
   period?: string;
   surface?: number;
+  discount?: number;
   error?: string;
 };
 
@@ -25,13 +26,12 @@ export function EstimateNote({
   pricePerM2,
   detailsJson,
   estimatedAt,
-  propertyType,
 }: {
   propertyId: string;
   pricePerM2: number | null;
   detailsJson: string | null;
   estimatedAt: string | null;
-  propertyType: string | null;
+  propertyType?: string | null;
 }) {
   const { t, locale } = useI18n();
   const queryClient = useQueryClient();
@@ -67,7 +67,7 @@ export function EstimateNote({
     text = details.error;
   } else if (pricePerM2 && details.sales) {
     const where = details.radius
-      ? t("estimate.within").replace("{r}", String(details.radius))
+      ? t("estimate.within").replace("{r} m", details.radius >= 1000 ? `${details.radius / 1000} km` : `${details.radius} m`)
       : t("estimate.inCity").replace("{city}", details.commune ?? "");
     text = t("estimate.details")
       .replace("{ppm2}", formatCurrency(pricePerM2))
@@ -84,7 +84,9 @@ export function EstimateNote({
     <div className="mt-4 flex flex-wrap items-start justify-between gap-3 rounded-md bg-slate-50 border border-slate-200 px-4 py-3">
       <div className="min-w-0 flex-1 space-y-1 text-[12px] leading-relaxed text-slate-600">
         <p className={details.error ? "text-amber-700" : ""}>{text}</p>
-        {!details.error && propertyType === "BUILDING" && <p className="text-slate-500">{t("estimate.buildingNote")}</p>}
+        {!details.error && details.discount ? (
+          <p className="text-slate-500">{t("estimate.discountNote").replace("{d}", String(details.discount))}</p>
+        ) : null}
         {estimatedAt && (
           <p className="text-slate-400 tabular-nums">
             {new Date(estimatedAt).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-GB")}

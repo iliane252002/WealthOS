@@ -6,9 +6,10 @@ import { db } from "@/lib/db";
  * 1. L'adresse est géolocalisée avec la Base Adresse Nationale (api-adresse.data.gouv.fr).
  * 2. On charge les ventes des deux dernières années publiées dans la commune
  *    (ou l'arrondissement à Paris, Lyon, Marseille).
- * 3. On garde les ventes simples d'un seul appartement ou d'une seule maison,
- *    du même type que le bien, et on calcule le prix médian au m²,
- *    d'abord autour de l'adresse (500 m, puis 1 km), sinon sur toute la commune.
+ * 3. Appartement / maison : ventes simples d'un seul logement du même type,
+ *    prix médian au m² autour de l'adresse (500 m, puis 1 km), sinon sur la commune.
+ *    Immeuble : ventes en bloc de plusieurs logements sur 4 ans (1 km, 2 km, commune) ;
+ *    s'il y en a trop peu, prix des appartements avec une décote de 20 %.
  * 4. Valeur estimée = prix médian au m² × surface du bien.
  *
  * DVF ne couvre pas l'Alsace, la Moselle ni Mayotte.
@@ -22,7 +23,9 @@ const RADII_M = [500, 1000];
 export type EstimateDetails = {
   commune: string;
   codeCommune: string;
-  localType: "Appartement" | "Maison" | "Appartement ou maison";
+  localType: "Appartement" | "Maison" | "Appartement ou maison" | "Immeuble";
+  /** Décote appliquée (en %) quand un immeuble est estimé faute de ventes en bloc */
+  discount?: number;
   sales: number;
   radius: number | null; // null = toute la commune
   period: string; // ex. "2024–2025"
@@ -34,6 +37,12 @@ export type EstimateResult =
   | { ok: false; reason: string };
 
 type Sale = { date: string; price: number; surface: number; type: string; lon: number; lat: number };
+/** Vente en bloc de plusieurs logements (un immeuble ou une partie d'immeuble) */
+type BlockSale = { date: string; price: number; surface: number; homes: number; lon: number; lat: number };
+
+const BUILDING_RADII_M = [1000, 2000];
+const MIN_BUILDING_SALES = 5;
+const BUILDING_FALLBACK_DISCOUNT = 20; // %
 
 function parseCsvLine(line: string): string[] {
   const out: string[] = [];
@@ -109,16 +118,16 @@ async function geocode(address: string, postalCode?: string | null, city?: strin
   };
 }
 
-/** Années disponibles dans DVF (les deux plus récentes). */
-async function latestYears(): Promise<string[]> {
+/** Années disponibles dans DVF (les `count` plus récentes). */
+async function latestYears(count = 2): Promise<string[]> {
   const res = await fetch(DVF_BASE, { signal: AbortSignal.timeout(8000), next: { revalidate: 86400 } });
   if (!res.ok) return [];
   const html = await res.text();
   const years = [...html.matchAll(/csv\/(\d{4})\//g)].map((m) => m[1]);
-  return [...new Set(years)].sort().slice(-2);
+  return [...new Set(years)].sort().slice(-count);
 }
 
-async function loadSales(citycode: string, years: string[]): Promise<Sale[]> {
+async function loadSales(citycode: string, years: string[]): Promise<{ sales: Sale[]; blocks: BlockSale[] }> {
   const dep = citycode.startsWith("97") ? citycode.slice(0, 3) : citycode.slice(0, 2);
   // Ventes regroupées par mutation : on ne garde que celles d'un seul logement
   const mutations = new Map<string, { price: number; homes: Sale[]; isSale: boolean }>();
@@ -162,15 +171,27 @@ async function loadSales(citycode: string, years: string[]): Promise<Sale[]> {
   }
 
   const sales: Sale[] = [];
+  const blocks: BlockSale[] = [];
   for (const m of mutations.values()) {
-    if (!m.isSale || m.homes.length !== 1) continue;
-    const s = m.homes[0];
-    if (!(s.surface >= 9) || !(s.price > 0)) continue;
-    const ppm2 = s.price / s.surface;
-    if (ppm2 < 300 || ppm2 > 40000) continue; // valeurs aberrantes
-    sales.push(s);
+    if (!m.isSale || m.homes.length === 0 || !(m.price > 0)) continue;
+    if (m.homes.length === 1) {
+      const s = m.homes[0];
+      if (!(s.surface >= 9)) continue;
+      const ppm2 = s.price / s.surface;
+      if (ppm2 < 300 || ppm2 > 40000) continue; // valeurs aberrantes
+      sales.push(s);
+    } else {
+      // Plusieurs logements vendus ensemble : vente d'immeuble (ou d'une partie)
+      if (m.homes.some((h) => !(h.surface > 0))) continue;
+      const surface = m.homes.reduce((sum, h) => sum + h.surface, 0);
+      if (surface < 60) continue;
+      const ppm2 = m.price / surface;
+      if (ppm2 < 200 || ppm2 > 25000) continue;
+      const first = m.homes[0];
+      blocks.push({ date: first.date, price: m.price, surface, homes: m.homes.length, lon: first.lon, lat: first.lat });
+    }
   }
-  return sales;
+  return { sales, blocks };
 }
 
 export async function estimateValue(input: {
@@ -194,47 +215,65 @@ export async function estimateValue(input: {
     return { ok: false, reason: "Les ventes de l'Alsace, de la Moselle et de Mayotte ne sont pas publiées : estimation impossible." };
   }
 
-  const years = await latestYears().catch(() => []);
-  if (years.length === 0) return { ok: false, reason: "Données de ventes indisponibles pour le moment." };
-  let all: Sale[];
+  const isBuilding = input.type === "BUILDING";
+  // Les ventes d'immeubles sont rares : on regarde 4 ans pour un immeuble, 2 ans sinon
+  const allYears = await latestYears(isBuilding ? 4 : 2).catch(() => []);
+  if (allYears.length === 0) return { ok: false, reason: "Données de ventes indisponibles pour le moment." };
+  const recentYears = allYears.slice(-2);
+  let data: Awaited<ReturnType<typeof loadSales>>;
   try {
-    all = await loadSales(geo.citycode, years);
+    data = await loadSales(geo.citycode, allYears);
   } catch {
     return { ok: false, reason: "Données de ventes momentanément indisponibles : réessayez dans un instant." };
   }
-
-  const wanted: string[] = input.type === "HOUSE" ? ["Maison"] : input.type ? ["Appartement"] : ["Appartement", "Maison"];
-  const sameType = all.filter((s) => wanted.includes(s.type));
-
-  let pool = sameType;
-  let radius: number | null = null;
-  if (geo.precise) {
-    for (const r of RADII_M) {
-      const near = sameType.filter((s) => Number.isFinite(s.lat) && distanceM(geo.lat, geo.lon, s.lat, s.lon) <= r);
-      if (near.length >= MIN_SALES) {
-        pool = near;
-        radius = r;
-        break;
+  const period = (years: string[]) => (years.length > 1 ? `${years[0]}–${years[years.length - 1]}` : years[0]);
+  const near = <T extends { lat: number; lon: number }>(list: T[], radii: number[], min: number) => {
+    if (geo.precise) {
+      for (const r of radii) {
+        const found = list.filter((s) => Number.isFinite(s.lat) && distanceM(geo.lat, geo.lon, s.lat, s.lon) <= r);
+        if (found.length >= min) return { pool: found, radius: r as number | null };
       }
     }
+    return { pool: list, radius: null as number | null };
+  };
+  const base = { commune: geo.city, codeCommune: geo.citycode, surface: input.surface };
+
+  // Immeuble : prix au m² des ventes en bloc (plusieurs logements vendus ensemble)
+  if (isBuilding) {
+    const { pool, radius } = near(data.blocks, BUILDING_RADII_M, MIN_BUILDING_SALES);
+    if (pool.length >= MIN_BUILDING_SALES) {
+      const pricePerM2 = Math.round(median(pool.map((s) => s.price / s.surface)));
+      return {
+        ok: true,
+        pricePerM2,
+        value: Math.round((pricePerM2 * input.surface) / 1000) * 1000,
+        details: { ...base, localType: "Immeuble", sales: pool.length, radius, period: period(allYears) },
+      };
+    }
   }
+
+  // Appartement, maison (ou immeuble sans ventes en bloc comparables)
+  const recent = data.sales.filter((s) => recentYears.some((y) => s.date.startsWith(y)));
+  const wanted: string[] = input.type === "HOUSE" ? ["Maison"] : input.type ? ["Appartement"] : ["Appartement", "Maison"];
+  const { pool, radius } = near(recent.filter((s) => wanted.includes(s.type)), RADII_M, MIN_SALES);
   if (pool.length < 5) {
     return { ok: false, reason: `Trop peu de ventes comparables à ${geo.city} pour estimer ce bien.` };
   }
 
-  const pricePerM2 = Math.round(median(pool.map((s) => s.price / s.surface)));
+  const median2 = median(pool.map((s) => s.price / s.surface));
+  const discount = isBuilding ? BUILDING_FALLBACK_DISCOUNT : undefined;
+  const pricePerM2 = Math.round(discount ? median2 * (1 - discount / 100) : median2);
   return {
     ok: true,
     pricePerM2,
     value: Math.round((pricePerM2 * input.surface) / 1000) * 1000,
     details: {
-      commune: geo.city,
-      codeCommune: geo.citycode,
+      ...base,
       localType: wanted.length === 2 ? "Appartement ou maison" : (wanted[0] as "Appartement" | "Maison"),
       sales: pool.length,
       radius,
-      period: years.length === 2 ? `${years[0]}–${years[1]}` : years[0],
-      surface: input.surface,
+      period: period(recentYears),
+      ...(discount ? { discount } : {}),
     },
   };
 }

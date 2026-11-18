@@ -93,9 +93,10 @@ const translations = {
   "estimate.typeAppartement": { en: "apartments", fr: "d'appartements" },
   "estimate.typeMaison": { en: "houses", fr: "de maisons" },
   "estimate.typeAppartement ou maison": { en: "homes", fr: "de logements" },
-  "estimate.buildingNote": {
-    en: "For a whole building, the estimate uses apartment prices; whole buildings usually sell somewhat lower.",
-    fr: "Pour un immeuble entier, l'estimation se base sur le prix des appartements ; un immeuble se vend en général un peu moins cher.",
+  "estimate.typeImmeuble": { en: "of buildings (several homes sold together)", fr: "d'immeubles (plusieurs logements vendus ensemble)" },
+  "estimate.discountNote": {
+    en: "Not enough building sales nearby: apartment prices are used with a {d} % discount, as a whole building usually sells for less.",
+    fr: "Trop peu de ventes d'immeubles à proximité : on part du prix des appartements avec une décote de {d} %, car un immeuble entier se vend en général moins cher.",
   },
   "estimate.refresh": { en: "Refresh estimate", fr: "Actualiser l'estimation" },
   "estimate.refreshing": { en: "Estimating…", fr: "Estimation…" },
