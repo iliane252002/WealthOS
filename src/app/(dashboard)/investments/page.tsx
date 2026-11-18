@@ -7,7 +7,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createInvestmentSchema, type CreateInvestmentInput, assetTypes } from "@/lib/validators/investment";
 import { TrendingUp, Plus, X, Search, Pencil, Trash2, Loader2, RefreshCw, ChevronDown, ChevronRight } from "lucide-react";
-import { PortfolioChart, PositionChart, Sparkline, type PortfolioPoint, type PricePoint } from "@/components/investments/charts";
+import { PortfolioChart, PositionChart, Sparkline, type PortfolioPoint, type PricePoint, type Trade } from "@/components/investments/charts";
+import { TransactionsPanel } from "@/components/investments/transactions-panel";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 
 interface StockResult {
@@ -48,13 +49,17 @@ interface PositionHistory {
   tracked: boolean;
   series: PricePoint[];
   rangeChangePct: number | null;
+  realized: number;
+  closed: boolean;
+  trades: Trade[];
 }
 
 interface History {
   range: string;
   lastUpdate: string | null;
-  points: PortfolioPoint[];
+  points: (PortfolioPoint & { netFlow: number })[];
   positions: PositionHistory[];
+  realized: number;
 }
 
 interface SyncReport {
@@ -246,7 +251,7 @@ export default function InvestmentsPage() {
 
   const portfolio = (investments || []).reduce(
     (acc, inv) => {
-      const qty = inv.quantity || 1;
+      const qty = inv.quantity ?? 1;
       const currentVal = (inv.currentPrice || inv.buyPrice) * qty;
       const buyVal = inv.buyPrice * qty;
       acc.totalValue += currentVal;
@@ -267,7 +272,7 @@ export default function InvestmentsPage() {
   const period =
     firstPoint && lastPoint && history!.points.length > 1
       ? (() => {
-          const added = lastPoint.invested - firstPoint.invested;
+          const added = lastPoint.netFlow - firstPoint.netFlow;
           const gain = lastPoint.value - firstPoint.value - added;
           const base = firstPoint.value + added;
           return { gain, pct: base > 0 ? (gain / base) * 100 : 0 };
@@ -275,6 +280,9 @@ export default function InvestmentsPage() {
       : null;
 
   const historyById = new Map((history?.positions ?? []).map((p) => [p.id, p]));
+  const realizedTotal = history?.realized ?? 0;
+  // En modification : quantité, prix et date sont calculés dès qu'il y a plusieurs opérations
+  const lockedByOps = mode === "edit" && !!editingId && (historyById.get(editingId)?.trades.length ?? 0) > 1;
 
   const assetTypeKeys: Record<string, TranslationKey> = {
     STOCK: "investments.stock",
@@ -319,13 +327,22 @@ export default function InvestmentsPage() {
             </p>
           </div>
           <div className="px-5 py-4">
-            <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500">{t("investments.totalGainLoss")}</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500">{t("investments.unrealized")}</p>
             <p className={`mt-2 text-[26px] leading-none font-semibold tabular-nums ${totalGainLoss >= 0 ? "text-emerald-600" : "text-red-600"}`}>
               {totalGainLoss >= 0 ? "+" : ""}
               {money(totalGainLoss)}
             </p>
-            <p className={`mt-2 text-[13px] tabular-nums ${totalPerformance >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-              {formatPercent(totalPerformance)}
+            <p className="mt-2 text-[13px] tabular-nums text-slate-500">
+              <span className={totalPerformance >= 0 ? "text-emerald-600" : "text-red-600"}>{formatPercent(totalPerformance)}</span>
+              {realizedTotal !== 0 && (
+                <span>
+                  {" "}· {t("investments.realized")} :{" "}
+                  <span className={realizedTotal >= 0 ? "text-emerald-600" : "text-red-600"}>
+                    {realizedTotal >= 0 ? "+" : ""}
+                    {money(realizedTotal)}
+                  </span>
+                </span>
+              )}
             </p>
           </div>
           <div className="px-5 py-4">
@@ -647,6 +664,8 @@ export default function InvestmentsPage() {
               </label>
               <input
                 {...form.register("quantity", { valueAsNumber: true })}
+                readOnly={lockedByOps}
+                title={lockedByOps ? t("investments.managedByOperations") : undefined}
                 type="number"
                 step="0.000001"
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -658,6 +677,8 @@ export default function InvestmentsPage() {
               </label>
               <input
                 {...form.register("buyPrice", { valueAsNumber: true })}
+                readOnly={lockedByOps}
+                title={lockedByOps ? t("investments.managedByOperations") : undefined}
                 type="number"
                 step="0.01"
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -679,6 +700,10 @@ export default function InvestmentsPage() {
             </div>
           </div>
 
+          {lockedByOps && (
+            <p className="text-xs text-slate-500 -mt-2">{t("investments.managedByOperations")}</p>
+          )}
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -697,6 +722,8 @@ export default function InvestmentsPage() {
               <input
                 type="date"
                 {...form.register("purchaseDate")}
+                readOnly={lockedByOps}
+                title={lockedByOps ? t("investments.managedByOperations") : undefined}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -775,7 +802,7 @@ export default function InvestmentsPage() {
                   {t("investments.qty")}
                 </th>
                 <th className="text-right px-6 py-3 font-medium text-slate-500">
-                  {t("investments.buyPrice")}
+                  {t("investments.pru")}
                 </th>
                 <th className="text-right px-6 py-3 font-medium text-slate-500">
                   {t("investments.price")}
@@ -793,30 +820,34 @@ export default function InvestmentsPage() {
             </thead>
             <tbody>
               {investments.map((inv) => {
-                const qty = inv.quantity || 1;
+                const qty = inv.quantity ?? 1;
                 const current = (inv.currentPrice || inv.buyPrice) * qty;
                 const cost = inv.buyPrice * qty;
                 const gainLoss = current - cost;
                 const perf = cost > 0 ? (gainLoss / cost) * 100 : 0;
                 const h = historyById.get(inv.id);
                 const tracked = !!h?.tracked && h.series.length > 1;
-                const expanded = expandedId === inv.id && tracked;
+                const expanded = expandedId === inv.id;
+                const closed = h?.closed ?? qty === 0;
                 const change = h?.rangeChangePct ?? null;
                 return (
                   <Fragment key={inv.id}>
                   <tr
-                    onClick={() => tracked && setExpandedId(expanded ? null : inv.id)}
-                    className={`border-b border-slate-100 transition-colors ${tracked ? "cursor-pointer hover:bg-slate-50" : ""} ${
+                    onClick={() => setExpandedId(expanded ? null : inv.id)}
+                    className={`border-b border-slate-100 transition-colors cursor-pointer hover:bg-slate-50 ${closed ? "text-slate-400" : ""} ${
                       editingId === inv.id || expanded ? "bg-slate-50" : ""
                     }`}
                   >
                     <td className="px-6 py-3">
                       <div className="flex items-start gap-2">
                         <span className="mt-0.5 w-3.5 text-slate-400">
-                          {tracked && (expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />)}
+                          {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                         </span>
                         <div>
-                          <span className="font-medium text-slate-900">{inv.name}</span>
+                          <span className={`font-medium ${closed ? "text-slate-500" : "text-slate-900"}`}>{inv.name}</span>
+                          {closed && (
+                            <span className="ml-1.5 text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">{t("investments.closed")}</span>
+                          )}
                           {inv.ticker && (
                             <span className="text-slate-400 ml-1.5 text-xs font-mono">{inv.ticker}</span>
                           )}
@@ -854,11 +885,23 @@ export default function InvestmentsPage() {
                       )}
                     </td>
                     <td className="px-6 py-3 text-right tabular-nums">
-                      <span className={`font-medium ${gainLoss >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                        {gainLoss >= 0 ? "+" : ""}
-                        {money(gainLoss, inv.currency)}
-                      </span>
-                      <p className={`text-xs ${gainLoss >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatPercent(perf)}</p>
+                      {closed ? (
+                        <>
+                          <span className={`font-medium ${(h?.realized ?? 0) >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                            {(h?.realized ?? 0) >= 0 ? "+" : ""}
+                            {money(h?.realized ?? 0, inv.currency)}
+                          </span>
+                          <p className="text-xs text-slate-500">{t("investments.realized")}</p>
+                        </>
+                      ) : (
+                        <>
+                          <span className={`font-medium ${gainLoss >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                            {gainLoss >= 0 ? "+" : ""}
+                            {money(gainLoss, inv.currency)}
+                          </span>
+                          <p className={`text-xs ${gainLoss >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatPercent(perf)}</p>
+                        </>
+                      )}
                     </td>
                     <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-center gap-1">
@@ -884,15 +927,23 @@ export default function InvestmentsPage() {
                   </tr>
                   {expanded && (
                     <tr className="border-b border-slate-100 bg-slate-50">
-                      <td colSpan={8} className="px-6 pb-4 pt-1">
-                        <div className="bg-white border border-slate-200 rounded-md px-2 pt-3">
-                          <PositionChart
-                            points={h!.series}
-                            buyPrice={inv.buyPrice}
-                            currency={inv.currency}
-                            locale={locale}
-                            buyLabel={t("investments.buyPrice")}
-                          />
+                      <td colSpan={8} className="px-6 pb-5 pt-1 space-y-3 whitespace-normal">
+                        {tracked && (
+                          <div className="bg-white border border-slate-200 rounded-md px-2 pt-3">
+                            <PositionChart
+                              points={h!.series}
+                              buyPrice={inv.buyPrice}
+                              currency={inv.currency}
+                              locale={locale}
+                              buyLabel={t("investments.pru")}
+                              trades={h!.trades}
+                              tradeLabels={{ buy: t("investments.buy"), sell: t("investments.sell") }}
+                            />
+                          </div>
+                        )}
+                        <div>
+                          <h3 className="text-[13px] font-semibold text-slate-900 mb-2">{t("investments.operations")}</h3>
+                          <TransactionsPanel investmentId={inv.id} currency={inv.currency} currentPrice={inv.currentPrice} />
                         </div>
                       </td>
                     </tr>

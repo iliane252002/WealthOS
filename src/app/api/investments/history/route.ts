@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fxSymbol, historyStart, isoDate } from "@/lib/market";
+import { computePosition, stateAt, type Tx } from "@/lib/transactions";
 
 const RANGES: Record<string, number | null> = { "1M": 1, "6M": 6, "1Y": 12, "5Y": 60, MAX: null };
 
@@ -33,12 +34,26 @@ export async function GET(request: NextRequest) {
     const rangeKey = new URL(request.url).searchParams.get("range") ?? "1Y";
     const months = RANGES[rangeKey] === undefined ? 12 : RANGES[rangeKey];
 
-    const investments = await db.investment.findMany({ where: { userId: session.user.id } });
+    const investments = await db.investment.findMany({
+      where: { userId: session.user.id },
+      include: { transactions: true },
+    });
+
+    // Opérations de chaque position (une position sans opération = un achat unique)
+    const positionsState = new Map(
+      investments.map((inv) => {
+        const txs: Tx[] =
+          inv.transactions.length > 0
+            ? inv.transactions
+            : [{ id: inv.id, type: "BUY", date: historyStart(inv.purchaseDate), quantity: inv.quantity ?? 1, price: inv.buyPrice, fees: 0 }];
+        return [inv.id, computePosition(txs)];
+      })
+    );
     const today = isoDate(new Date());
 
     let start: string;
     if (months === null) {
-      start = investments.map((i) => historyStart(i.purchaseDate)).sort()[0] ?? today;
+      start = [...positionsState.values()].map((p) => p.firstDate ?? today).sort()[0] ?? today;
     } else {
       const d = new Date();
       d.setUTCMonth(d.getUTCMonth() - months);
@@ -97,7 +112,8 @@ export async function GET(request: NextRequest) {
       const ticker = inv.ticker?.trim() || null;
       const s = ticker ? series.get(ticker) : undefined;
       const invCurrency = (inv.currency || "EUR").toUpperCase();
-      const held = inv.purchaseDate && /^\d{4}-\d{2}-\d{2}$/.test(inv.purchaseDate) ? inv.purchaseDate : null;
+      const state = positionsState.get(inv.id)!;
+      const held = state.firstDate;
       const points: { date: string; price: number }[] = [];
       if (s) {
         for (const d of dates) {
@@ -122,9 +138,12 @@ export async function GET(request: NextRequest) {
         ticker,
         currency: invCurrency,
         quoteCurrency: s?.currency ?? null,
-        quantity: inv.quantity ?? 1,
+        quantity: state.quantity,
         buyPrice: inv.buyPrice,
         purchaseDate: held,
+        realized: state.realized,
+        closed: state.quantity === 0,
+        trades: state.transactions.map((t) => ({ date: t.date, type: t.type, quantity: t.quantity, price: t.price })),
         tracked: !!s && s.dates.length > 0,
         series: points,
         rangeChangePct: first && last ? ((last - first) / first) * 100 : null,
@@ -139,22 +158,33 @@ export async function GET(request: NextRequest) {
     const points = dates.map((d) => {
       let value = 0;
       let invested = 0;
+      let netFlow = 0;
       for (const inv of investments) {
         const p = byId.get(inv.id)!;
-        if (p.purchaseDate && d < p.purchaseDate) continue;
+        const st = stateAt(positionsState.get(inv.id)!.transactions, d);
+        if (st.held === 0 && st.netFlow === 0) continue;
         const rate = toEur(p.currency, d) ?? 1;
-        const qty = inv.quantity ?? 1;
-        invested += qty * inv.buyPrice * rate;
+        invested += st.costBasis * rate;
+        netFlow += st.netFlow * rate;
+        if (st.held === 0) continue;
         if (p.tracked) {
           const price = valueAt(posSeries.get(p.id), d);
-          value += qty * (price ?? inv.buyPrice) * rate;
+          value += st.held * (price ?? inv.buyPrice) * rate;
         } else {
           // Placement non coté (livret, fonds euros…) : valeur saisie à la main
-          value += qty * (inv.currentPrice ?? inv.buyPrice) * rate;
+          value += st.held * (inv.currentPrice ?? inv.buyPrice) * rate;
         }
       }
-      return { date: d, value: Math.round(value * 100) / 100, invested: Math.round(invested * 100) / 100 };
+      return {
+        date: d,
+        value: Math.round(value * 100) / 100,
+        invested: Math.round(invested * 100) / 100,
+        netFlow: Math.round(netFlow * 100) / 100,
+      };
     });
+
+    // Plus-values réalisées (ventes), converties en euros au dernier taux connu
+    const realized = positions.reduce((sum, p) => sum + p.realized * (toEur(p.currency, today) ?? 1), 0);
 
     return NextResponse.json({
       range: rangeKey in RANGES ? rangeKey : "1Y",
@@ -162,6 +192,7 @@ export async function GET(request: NextRequest) {
       lastUpdate: lastUpdate ? isoDate(lastUpdate) : null,
       points,
       positions,
+      realized: Math.round(realized * 100) / 100,
     });
   } catch (error) {
     console.error("GET /api/investments/history error:", error);

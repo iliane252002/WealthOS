@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { createInvestmentSchema } from "@/lib/validators/investment";
-import { syncInvestmentPrices } from "@/lib/market";
+import { syncInvestmentPrices, isoDate } from "@/lib/market";
+import { recomputeInvestment } from "@/lib/transactions";
 
 export async function GET() {
   try {
@@ -43,6 +44,19 @@ export async function POST(request: NextRequest) {
         userId: session.user.id,
       },
     });
+
+    // La saisie initiale devient le premier achat de la position
+    await db.investmentTransaction.create({
+      data: {
+        investmentId: investment.id,
+        type: "BUY",
+        date: /^\d{4}-\d{2}-\d{2}$/.test(parsed.data.purchaseDate ?? "") ? parsed.data.purchaseDate! : isoDate(new Date()),
+        quantity: parsed.data.quantity ?? 1,
+        price: parsed.data.buyPrice,
+      },
+    });
+    await recomputeInvestment(investment.id);
+    investment = await db.investment.findUniqueOrThrow({ where: { id: investment.id } });
 
     // Position cotée : on récupère tout de suite son cours et son historique
     if (investment.ticker) {

@@ -33,7 +33,7 @@ export async function GET() {
   }
   const totalInvestmentValue = investments.reduce(
     (sum, inv) =>
-      sum + (inv.currentPrice || inv.buyPrice) * (inv.quantity || 1) * (rates.get((inv.currency || "EUR").toUpperCase()) ?? 1),
+      sum + (inv.currentPrice || inv.buyPrice) * (inv.quantity ?? 1) * (rates.get((inv.currency || "EUR").toUpperCase()) ?? 1),
     0
   );
 

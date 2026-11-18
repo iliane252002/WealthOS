@@ -6,6 +6,7 @@ import {
   CartesianGrid,
   Line,
   LineChart,
+  ReferenceDot,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -15,16 +16,19 @@ import {
 import { formatCurrency } from "@/lib/utils";
 
 // Couleurs de la charte (voir globals.css)
-const ACCENT = "var(--color-blue-600)";
-const ACCENT_FILL = "var(--color-blue-100)";
-const MUTED = "var(--color-slate-400)";
-const GRID = "var(--color-slate-100)";
-const AXIS = "var(--color-slate-500)";
-const UP = "var(--color-emerald-600)";
-const DOWN = "var(--color-red-600)";
+const ACCENT = "var(--color-blue-600, #2c4a70)";
+const ACCENT_FILL = "var(--color-blue-100, #e1e8f0)";
+const MUTED = "var(--color-slate-400, #8e8b83)";
+const GRID = "var(--color-slate-100, #eeede9)";
+const AXIS = "var(--color-slate-500, #6b6862)";
+const UP = "var(--color-emerald-600, #2f7049)";
+const DOWN = "var(--color-red-600, #a33a2e)";
+const BUY = "var(--color-blue-700, #223b5a)";
+const SELL = "var(--color-amber-500, #d97706)";
 
 export type PortfolioPoint = { date: string; value: number; invested: number };
 export type PricePoint = { date: string; price: number };
+export type Trade = { date: string; type: string; quantity: number; price: number };
 
 const dateFmt = (locale: string, opts: Intl.DateTimeFormatOptions) => (iso: string) =>
   new Date(iso + "T00:00:00").toLocaleDateString(locale === "fr" ? "fr-FR" : "en-GB", opts);
@@ -152,13 +156,26 @@ export function PositionChart({
   currency,
   locale,
   buyLabel,
+  trades = [],
+  tradeLabels,
 }: {
   points: PricePoint[];
   buyPrice: number;
   currency: string;
   locale: string;
   buyLabel: string;
+  trades?: Trade[];
+  tradeLabels?: { buy: string; sell: string };
 }) {
+  // Les opérations d'un jour sans cotation sont placées à la séance suivante
+  const dots = trades
+    .map((tr) => {
+      const at = points.find((p) => p.date >= tr.date) ?? points[points.length - 1];
+      return at ? { ...tr, x: at.date } : null;
+    })
+    .filter((d): d is Trade & { x: string } => !!d && d.date >= points[0]?.date);
+  const tradesByDate = new Map<string, Trade[]>();
+  for (const d of dots) tradesByDate.set(d.x, [...(tradesByDate.get(d.x) ?? []), d]);
   const fmtAxis = axisDateFormatter(locale, points[0]?.date, points[points.length - 1]?.date);
   const fmtFull = dateFmt(locale, { day: "numeric", month: "long", year: "numeric" });
   const last = points[points.length - 1]?.price ?? buyPrice;
@@ -191,21 +208,40 @@ export function PositionChart({
           ifOverflow="extendDomain"
           stroke={MUTED}
           strokeDasharray="4 4"
-          label={{ value: `${buyLabel} ${money(buyPrice)}`, position: "insideTopLeft", fill: AXIS, fontSize: 11 }}
+          label={{ value: `${buyLabel} ${money(buyPrice)}`, position: "insideBottomRight", fill: AXIS, fontSize: 11 }}
         />
         <Tooltip
           cursor={{ stroke: MUTED, strokeDasharray: "3 3" }}
           content={({ active, payload }) => {
             if (!active || !payload?.length) return null;
             const p = payload[0].payload as PricePoint;
+            const dayTrades = tradesByDate.get(p.date) ?? [];
             return (
               <TooltipBox>
                 <p className="text-slate-500 mb-1">{fmtFull(p.date)}</p>
                 <p className="font-semibold text-slate-900">{money(p.price)}</p>
+                {dayTrades.map((tr, i) => (
+                  <p key={i} className={tr.type === "SELL" ? "text-amber-700" : "text-blue-700"}>
+                    {tr.type === "SELL" ? tradeLabels?.sell : tradeLabels?.buy} :{" "}
+                    {new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 8 }).format(tr.quantity)} × {money(tr.price)}
+                  </p>
+                ))}
               </TooltipBox>
             );
           }}
         />
+        {dots.map((d, i) => (
+          <ReferenceDot
+            key={i}
+            x={d.x}
+            y={d.price}
+            r={4}
+            fill={d.type === "SELL" ? SELL : BUY}
+            stroke="white"
+            strokeWidth={1.5}
+            ifOverflow="extendDomain"
+          />
+        ))}
         <Line
           type="monotone"
           dataKey="price"

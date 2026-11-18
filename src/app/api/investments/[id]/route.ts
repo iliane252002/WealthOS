@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { updateInvestmentSchema } from "@/lib/validators/investment";
 import { syncInvestmentPrices } from "@/lib/market";
+import { recomputeInvestment } from "@/lib/transactions";
 
 export async function GET(
   _request: NextRequest,
@@ -57,10 +58,26 @@ export async function PUT(
       return NextResponse.json({ error: "Investment not found" }, { status: 404 });
     }
 
-    let investment = await db.investment.update({
+    // Quantité, prix d'achat et date viennent des opérations.
+    // S'il n'y a qu'un achat, on le corrige ; sinon on ignore ces champs.
+    const { quantity, buyPrice, purchaseDate, ...rest } = parsed.data;
+    const txs = await db.investmentTransaction.findMany({ where: { investmentId: id } });
+    if (txs.length === 1 && txs[0].type === "BUY") {
+      await db.investmentTransaction.update({
+        where: { id: txs[0].id },
+        data: {
+          ...(quantity !== undefined ? { quantity } : {}),
+          ...(buyPrice !== undefined ? { price: buyPrice } : {}),
+          ...(purchaseDate && /^\d{4}-\d{2}-\d{2}$/.test(purchaseDate) ? { date: purchaseDate } : {}),
+        },
+      });
+    }
+    await db.investment.update({
       where: { id },
-      data: parsed.data,
+      data: txs.length === 0 ? parsed.data : rest,
     });
+    await recomputeInvestment(id);
+    let investment = await db.investment.findUniqueOrThrow({ where: { id } });
 
     // Position cotée : on récupère tout de suite son cours et son historique
     if (investment.ticker) {
