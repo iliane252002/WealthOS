@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { createInvestmentSchema } from "@/lib/validators/investment";
+import { syncInvestmentPrices } from "@/lib/market";
 
 export async function GET() {
   try {
@@ -36,12 +37,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
 
-    const investment = await db.investment.create({
+    let investment = await db.investment.create({
       data: {
         ...parsed.data,
         userId: session.user.id,
       },
     });
+
+    // Position cotée : on récupère tout de suite son cours et son historique
+    if (investment.ticker) {
+      const report = await syncInvestmentPrices(session.user.id, investment.id).catch(() => null);
+      if (report?.updated) investment = await db.investment.findUniqueOrThrow({ where: { id: investment.id } });
+    }
 
     return NextResponse.json(investment, { status: 201 });
   } catch (error) {

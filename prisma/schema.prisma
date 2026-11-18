@@ -352,6 +352,7 @@ model Investment {
   accountName  String?
   purchaseDate String?
   notes        String?
+  priceUpdatedAt DateTime? // date du dernier cours récupéré automatiquement
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -359,6 +360,21 @@ model Investment {
 
   @@index([userId])
   @@index([assetType])
+}
+
+// ─── COURS DE MARCHÉ ─────────────────────────────────
+// Cours de clôture quotidiens, partagés entre utilisateurs.
+// Contient aussi les taux de change (ex. "USDEUR=X").
+model PriceHistory {
+  id        String   @id @default(cuid())
+  symbol    String
+  date      String   // YYYY-MM-DD, date de la séance
+  close     Float
+  currency  String
+  createdAt DateTime @default(now())
+
+  @@unique([symbol, date])
+  @@index([symbol])
 }
 
 // ─── LOANS (mortgage / credit immobilier) ──────────

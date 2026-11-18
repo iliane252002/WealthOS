@@ -23,5 +23,6 @@ export function formatDate(date: string | Date): string {
 }
 
 export function formatPercent(value: number): string {
-  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
+  const formatted = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+  return `${value >= 0 ? "+" : ""}${formatted} %`;
 }

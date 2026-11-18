@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { updateInvestmentSchema } from "@/lib/validators/investment";
+import { syncInvestmentPrices } from "@/lib/market";
 
 export async function GET(
   _request: NextRequest,
@@ -56,10 +57,16 @@ export async function PUT(
       return NextResponse.json({ error: "Investment not found" }, { status: 404 });
     }
 
-    const investment = await db.investment.update({
+    let investment = await db.investment.update({
       where: { id },
       data: parsed.data,
     });
+
+    // Position cotée : on récupère tout de suite son cours et son historique
+    if (investment.ticker) {
+      const report = await syncInvestmentPrices(session.user.id, id).catch(() => null);
+      if (report?.updated) investment = await db.investment.findUniqueOrThrow({ where: { id } });
+    }
 
     return NextResponse.json(investment);
   } catch (error) {

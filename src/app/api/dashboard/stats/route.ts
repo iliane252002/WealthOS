@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { storedRateToEur } from "@/lib/market";
 
 export async function GET() {
   const session = await auth();
@@ -24,8 +25,15 @@ export async function GET() {
     0
   );
 
+  // Valeur en euros : les positions en devises sont converties au dernier taux connu
+  const rates = new Map<string, number>();
+  for (const inv of investments) {
+    const c = (inv.currency || "EUR").toUpperCase();
+    if (!rates.has(c)) rates.set(c, await storedRateToEur(c));
+  }
   const totalInvestmentValue = investments.reduce(
-    (sum, inv) => sum + (inv.currentPrice || inv.buyPrice) * (inv.quantity || 1),
+    (sum, inv) =>
+      sum + (inv.currentPrice || inv.buyPrice) * (inv.quantity || 1) * (rates.get((inv.currency || "EUR").toUpperCase()) ?? 1),
     0
   );
 
