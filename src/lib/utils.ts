@@ -33,3 +33,13 @@ export async function fetchJson<T>(url: string): Promise<T> {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json() as Promise<T>;
 }
+
+/**
+ * Lecture d'un champ nombre facultatif dans un formulaire (react-hook-form, option setValueAs) :
+ * vide, 0 ou invalide → undefined (champ non renseigné), sinon le nombre.
+ */
+export function optionalNumber(v: unknown): number | undefined {
+  if (v === "" || v === null || v === undefined) return undefined;
+  const n = typeof v === "number" ? v : Number(String(v).replace(/\s/g, "").replace(",", "."));
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}

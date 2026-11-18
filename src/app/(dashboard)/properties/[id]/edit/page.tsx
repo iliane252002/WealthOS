@@ -1,5 +1,7 @@
 "use client";
 
+import { optionalNumber } from "@/lib/utils";
+
 import { useRouter, useParams } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -209,11 +211,13 @@ export default function EditPropertyPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.purchasePrice")}</label>
-              <input {...register("acquisitionPrice", { valueAsNumber: true })} type="number" step="0.01" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+              <input {...register("acquisitionPrice", { setValueAs: optionalNumber })} type="number" step="0.01" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                {errors.acquisitionPrice && <p className="text-red-500 text-xs mt-1">{errors.acquisitionPrice.message}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.currentValue")}</label>
-              <input {...register("currentValue", { valueAsNumber: true })} type="number" step="0.01" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+              <input {...register("currentValue", { setValueAs: optionalNumber })} type="number" step="0.01" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                {errors.currentValue && <p className="text-red-500 text-xs mt-1">{errors.currentValue.message}</p>}
                 <p className="text-xs text-slate-500 mt-1">{t("estimate.formHint")}</p>
             </div>
           </div>
@@ -222,7 +226,8 @@ export default function EditPropertyPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.surface")}</label>
-              <input {...register("surface", { valueAsNumber: true })} type="number" step="0.01" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+              <input {...register("surface", { setValueAs: optionalNumber })} type="number" step="0.01" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                {errors.surface && <p className="text-red-500 text-xs mt-1">{errors.surface.message}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.acquisitionDate")}</label>
