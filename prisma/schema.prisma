@@ -17,6 +17,7 @@ model User {
   name           String?
   hashedPassword String?
   image          String?
+  onboardedAt    DateTime? // fin du parcours de bienvenue ; null = à afficher
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

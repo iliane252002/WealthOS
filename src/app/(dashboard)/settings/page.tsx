@@ -4,6 +4,7 @@ import { useSession, signOut } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { User, LogOut, Globe, Package, Loader2, Check } from "lucide-react";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
+import Link from "next/link";
 
 const ALL_MODULES = ["EXPENSES", "WORKS", "UTILITIES", "LEGAL", "ADVANCED_DOCS"] as const;
 
@@ -79,11 +80,16 @@ export default function SettingsPage() {
           <Package size={18} className="text-slate-600" />
           <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider">{t("modules.title")}</h3>
         </div>
-        <p className="text-sm text-slate-500 mb-5">{t("modules.subtitle")}</p>
+        <div className="flex flex-wrap items-baseline justify-between gap-2 mb-5">
+          <p className="text-sm text-slate-500">{t("modules.subtitle")}</p>
+          <Link href="/bienvenue" className="text-[13px] text-blue-600 hover:text-blue-800">
+            {t("onboarding.replay")}
+          </Link>
+        </div>
         {modulesLoading ? (
           <div className="flex items-center gap-2 text-slate-400 py-4">
             <Loader2 size={16} className="animate-spin" />
-            <span className="text-sm">Loading...</span>
+            <span className="text-sm">…</span>
           </div>
         ) : (
           <div className="space-y-3">
