@@ -5,13 +5,40 @@ import { Bell, LogOut, User, Globe } from "lucide-react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useRef, useEffect } from "react";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, type TranslationKey } from "@/lib/i18n";
+import { usePathname } from "next/navigation";
+
+const sectionLabels: Record<string, TranslationKey> = {
+  "": "nav.dashboard",
+  properties: "nav.properties",
+  tenants: "nav.tenants",
+  documents: "nav.documents",
+  expenses: "nav.expenses",
+  works: "nav.works",
+  tasks: "nav.tasks",
+  contractors: "nav.contractors",
+  investments: "nav.investments",
+  comptabilite: "nav.accounting",
+  fiscalite: "nav.fiscalite",
+  timeline: "nav.timeline",
+  notifications: "nav.notifications",
+  settings: "nav.settings",
+};
 
 export function Topbar() {
   const { data: session } = useSession();
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { t, locale, setLocale } = useI18n();
+  const pathname = usePathname();
+  const section = sectionLabels[pathname.split("/")[1] ?? ""];
+  const name = session?.user?.name || t("topbar.investor");
+  const initials = name
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   const { data: notifications } = useQuery({
     queryKey: ["notifications", "unread-count"],
@@ -35,31 +62,29 @@ export function Topbar() {
   }, []);
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6">
-      <div>
-        <h2 className="text-sm font-medium text-slate-500">
-          {t("topbar.welcome")}{" "}
-          <span className="text-slate-900">{session?.user?.name || t("topbar.investor")}</span>
-        </h2>
+    <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0">
+      <div className="text-[13px] text-slate-500 truncate">
+        {section ? t(section) : ""}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         <button
           onClick={() => setLocale(locale === "en" ? "fr" : "en")}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors text-sm text-slate-600 font-medium"
+          className="flex items-center gap-1.5 h-8 px-2 rounded-md hover:bg-slate-100 transition-colors text-xs text-slate-500 font-medium"
           title={locale === "en" ? "Passer en français" : "Switch to English"}
         >
-          <Globe size={16} />
+          <Globe size={14} />
           {locale === "en" ? "FR" : "EN"}
         </button>
 
         <Link
           href="/notifications"
-          className="relative p-2 rounded-lg hover:bg-slate-100 transition-colors"
+          aria-label={t("nav.notifications")}
+          className="relative grid place-items-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors"
         >
-          <Bell size={20} className="text-slate-600" />
+          <Bell size={16} className="text-slate-600" />
           {notifications && notifications.count > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+            <span className="absolute top-1 right-1 min-w-4 h-4 px-1 bg-red-600 text-white text-[10px] font-semibold rounded-full flex items-center justify-center">
               {notifications.count > 9 ? "9+" : notifications.count}
             </span>
           )}
@@ -68,11 +93,12 @@ export function Topbar() {
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setShowMenu(!showMenu)}
-            className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-100 transition-colors"
+            className="flex items-center gap-2 h-8 pl-1 pr-2 ml-1 rounded-md hover:bg-slate-100 transition-colors"
           >
-            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-              <User size={16} className="text-white" />
-            </div>
+            <span className="grid place-items-center w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-[11px] font-semibold">
+              {initials}
+            </span>
+            <span className="text-[13px] text-slate-700 hidden sm:inline">{name}</span>
           </button>
 
           {showMenu && (

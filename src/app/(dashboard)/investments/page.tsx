@@ -212,7 +212,7 @@ export default function InvestmentsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">{t("investments.title")}</h1>
+        <h1 className="text-[22px] font-semibold text-slate-900">{t("investments.title")}</h1>
         <button
           onClick={() => {
             if (mode !== "none") {
@@ -221,7 +221,7 @@ export default function InvestmentsPage() {
               setMode("create");
             }
           }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-sm font-medium transition-colors"
         >
           {mode !== "none" ? <X size={16} /> : <Plus size={16} />}
           {mode !== "none" ? t("investments.cancel") : t("investments.addPosition")}
@@ -231,14 +231,14 @@ export default function InvestmentsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
           <p className="text-sm text-slate-500">{t("investments.totalValue")}</p>
-          <p className="text-2xl font-bold text-slate-900 mt-1">
+          <p className="text-2xl font-semibold text-slate-900 mt-1">
             {formatCurrency(portfolio.totalValue)}
           </p>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
           <p className="text-sm text-slate-500">{t("investments.totalGainLoss")}</p>
           <p
-            className={`text-2xl font-bold mt-1 ${
+            className={`text-2xl font-semibold mt-1 ${
               totalGainLoss >= 0 ? "text-emerald-600" : "text-red-600"
             }`}
           >
@@ -248,7 +248,7 @@ export default function InvestmentsPage() {
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
           <p className="text-sm text-slate-500">{t("investments.performance")}</p>
           <p
-            className={`text-2xl font-bold mt-1 ${
+            className={`text-2xl font-semibold mt-1 ${
               totalPerformance >= 0 ? "text-emerald-600" : "text-red-600"
             }`}
           >
@@ -418,7 +418,7 @@ export default function InvestmentsPage() {
             <button
               type="submit"
               disabled={isPending}
-              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm font-medium"
+              className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors disabled:opacity-50 text-sm font-medium"
             >
               {isPending ? (
                 <span className="flex items-center gap-2">
@@ -555,7 +555,7 @@ export default function InvestmentsPage() {
             <button
               type="submit"
               disabled={isPending}
-              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm font-medium"
+              className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors disabled:opacity-50 text-sm font-medium"
             >
               {isPending ? (
                 <span className="flex items-center gap-2">

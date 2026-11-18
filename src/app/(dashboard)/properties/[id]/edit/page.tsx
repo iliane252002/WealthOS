@@ -115,7 +115,7 @@ export default function EditPropertyPage() {
           <ArrowLeft size={20} className="text-slate-600" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">{t("propertyEdit.title")}</h1>
+          <h1 className="text-[22px] font-semibold text-slate-900">{t("propertyEdit.title")}</h1>
           <p className="text-sm text-slate-500">{property.name}</p>
         </div>
       </div>
@@ -239,7 +239,7 @@ export default function EditPropertyPage() {
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm font-medium"
+            className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors disabled:opacity-50 text-sm font-medium"
           >
             {mutation.isPending ? t("propertyEdit.saving") : t("propertyEdit.save")}
           </button>

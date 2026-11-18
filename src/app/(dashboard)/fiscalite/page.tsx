@@ -18,7 +18,7 @@ function TaxCard({ icon, title, tags, bullets, conseil }: CardProps) {
           {icon}
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="text-base font-bold text-slate-900 leading-tight">{title}</h2>
+          <h2 className="text-base font-semibold text-slate-900 leading-tight">{title}</h2>
           <div className="flex flex-wrap gap-1.5 mt-2">
             {tags.map((tag) => (
               <span
@@ -55,7 +55,7 @@ export default function FiscalitePage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Fiscalité immobilière</h1>
+        <h1 className="text-[22px] font-semibold text-slate-900">Fiscalité immobilière</h1>
         <p className="text-sm text-slate-500 mt-1">
           Optimisez votre fiscalité — conseils pour bailleurs, SCI et LMNP
         </p>

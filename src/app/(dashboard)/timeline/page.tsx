@@ -85,7 +85,7 @@ export default function TimelinePage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-slate-900">{t("timeline.title")}</h1>
+      <h1 className="text-[22px] font-semibold text-slate-900">{t("timeline.title")}</h1>
 
       <div className="flex gap-2">
         {["all", "rent_paid", "rent_late", "work"].map((f) => (
@@ -93,7 +93,7 @@ export default function TimelinePage() {
             key={f}
             onClick={() => setFilter(f)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              filter === f ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              filter === f ? "bg-blue-700 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             }`}
           >
             {filterLabels[f]}

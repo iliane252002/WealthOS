@@ -170,7 +170,7 @@ export default function ExpensesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">{t("expenses.title")}</h1>
+          <h1 className="text-[22px] font-semibold text-slate-900">{t("expenses.title")}</h1>
         </div>
         <button
           onClick={() => {
@@ -180,7 +180,7 @@ export default function ExpensesPage() {
               setMode("create");
             }
           }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors text-sm font-medium"
         >
           {mode !== "none" ? <X size={16} /> : <Plus size={16} />}
           {mode !== "none" ? t("expenses.cancel") : t("expenses.addExpense")}
@@ -191,16 +191,16 @@ export default function ExpensesPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
           <p className="text-sm text-slate-500">{t("expenses.totalExpenses")}</p>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{formatCurrency(totalExpenses)}</p>
+          <p className="text-2xl font-semibold text-slate-900 mt-1">{formatCurrency(totalExpenses)}</p>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
           <p className="text-sm text-slate-500">{t("expenses.recurring")}</p>
-          <p className="text-2xl font-bold text-blue-600 mt-1">{formatCurrency(recurringTotal)}</p>
+          <p className="text-2xl font-semibold text-blue-600 mt-1">{formatCurrency(recurringTotal)}</p>
           <p className="text-xs text-slate-400 mt-0.5">{recurringExpenses.length} items</p>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
           <p className="text-sm text-slate-500">{t("expenses.oneTime")}</p>
-          <p className="text-2xl font-bold text-emerald-600 mt-1">{formatCurrency(totalExpenses - recurringTotal)}</p>
+          <p className="text-2xl font-semibold text-emerald-600 mt-1">{formatCurrency(totalExpenses - recurringTotal)}</p>
           <p className="text-xs text-slate-400 mt-0.5">{oneTimeExpenses.length} items</p>
         </div>
       </div>
@@ -332,7 +332,7 @@ export default function ExpensesPage() {
             <button
               type="submit"
               disabled={isPending}
-              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm font-medium"
+              className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors disabled:opacity-50 text-sm font-medium"
             >
               {isPending ? (
                 <span className="flex items-center gap-2">

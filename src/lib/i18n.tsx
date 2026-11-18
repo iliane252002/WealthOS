@@ -20,6 +20,12 @@ const translations = {
   "nav.tasks": { en: "Tasks", fr: "Tâches" },
   "nav.contractors": { en: "Contractors", fr: "Artisans" },
   "nav.settings": { en: "Settings", fr: "Paramètres" },
+  "nav.group.rental": { en: "Rental management", fr: "Gestion locative" },
+  "nav.group.organisation": { en: "Organisation", fr: "Organisation" },
+  "nav.group.finance": { en: "Finance", fr: "Finances" },
+  "nav.group.follow": { en: "Follow-up", fr: "Suivi" },
+  "nav.collapse": { en: "Collapse menu", fr: "Réduire le menu" },
+  "nav.expand": { en: "Expand menu", fr: "Déplier le menu" },
 
   // ── Topbar ──
   "topbar.welcome": { en: "Welcome back,", fr: "Bon retour," },
@@ -29,6 +35,12 @@ const translations = {
 
   // ── Dashboard ──
   "dashboard.title": { en: "Dashboard", fr: "Tableau de bord" },
+  "dashboard.toHandle": { en: "To handle", fr: "À traiter" },
+  "dashboard.nothingToHandle": { en: "Nothing to handle right now.", fr: "Rien à traiter pour le moment." },
+  "dashboard.expectedThisMonth": { en: "expected this month", fr: "attendus ce mois-ci" },
+  "dashboard.scoreOutOf": { en: "out of 100", fr: "sur 100" },
+  "dashboard.daysLate": { en: "d late", fr: " j de retard" },
+  "dashboard.showing": { en: "5 most recent of", fr: "5 plus récents sur" },
   "dashboard.wealthScore": { en: "Wealth Score", fr: "Score patrimonial" },
   "dashboard.totalNetWorth": { en: "Total Net Worth", fr: "Patrimoine net total" },
   "dashboard.realEstate": { en: "Real Estate:", fr: "Immobilier :" },
@@ -522,21 +534,47 @@ const translations = {
 
 export type TranslationKey = keyof typeof translations;
 
+// Libellés des valeurs techniques (statuts, types) stockées en base
+const valueLabels: Record<string, { en: string; fr: string }> = {
+  OCCUPIED: { en: "Occupied", fr: "Occupé" },
+  VACANT: { en: "Vacant", fr: "Vacant" },
+  PENDING: { en: "Pending", fr: "À venir" },
+  DUE: { en: "Due", fr: "Exigible" },
+  PAID: { en: "Paid", fr: "Payé" },
+  LATE: { en: "Late", fr: "En retard" },
+  PARTIALLY_PAID: { en: "Partially paid", fr: "Partiel" },
+  PLANNED: { en: "Planned", fr: "Prévu" },
+  IN_PROGRESS: { en: "In progress", fr: "En cours" },
+  COMPLETED: { en: "Completed", fr: "Terminé" },
+  CANCELLED: { en: "Cancelled", fr: "Annulé" },
+  OK: { en: "Valid", fr: "À jour" },
+  MISSING: { en: "Missing", fr: "Manquant" },
+  EXPIRED: { en: "Expired", fr: "Expiré" },
+  EXPIRING_SOON: { en: "Expiring soon", fr: "Expire bientôt" },
+  APARTMENT: { en: "Apartment", fr: "Appartement" },
+  HOUSE: { en: "House", fr: "Maison" },
+  BUILDING: { en: "Building", fr: "Immeuble" },
+  sci: { en: "SCI", fr: "SCI" },
+  personal: { en: "Personal", fr: "Nom propre" },
+};
+
 interface I18nContextType {
   locale: Locale;
   setLocale: (locale: Locale) => void;
   t: (key: TranslationKey) => string;
+  /** Traduit une valeur technique (ex. "OCCUPIED" → "Occupé") */
+  label: (value: string | null | undefined) => string;
 }
 
 const I18nContext = createContext<I18nContextType | null>(null);
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>("en");
+  const [locale, setLocaleState] = useState<Locale>("fr");
 
   // Sync with localStorage after hydration to avoid SSR mismatch
   useEffect(() => {
     const saved = localStorage.getItem("wealthos-locale") as Locale | null;
-    if (saved && saved !== "en") {
+    if (saved === "en" || saved === "fr") {
       setLocaleState(saved);
     }
   }, []);
@@ -555,8 +593,17 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     [locale]
   );
 
+  const label = useCallback(
+    (value: string | null | undefined) => {
+      if (!value) return "";
+      const entry = valueLabels[value];
+      return entry ? entry[locale] : value;
+    },
+    [locale]
+  );
+
   return (
-    <I18nContext.Provider value={{ locale, setLocale, t }}>
+    <I18nContext.Provider value={{ locale, setLocale, t, label }}>
       {children}
     </I18nContext.Provider>
   );

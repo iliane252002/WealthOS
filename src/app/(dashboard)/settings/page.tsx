@@ -36,7 +36,7 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <h1 className="text-2xl font-bold text-slate-900">{t("settings.title")}</h1>
+      <h1 className="text-[22px] font-semibold text-slate-900">{t("settings.title")}</h1>
 
       {/* Profile */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">

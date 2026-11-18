@@ -98,10 +98,10 @@ export default function TenantsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">{t("tenants.title")}</h1>
+        <h1 className="text-[22px] font-semibold text-slate-900">{t("tenants.title")}</h1>
         <button
           onClick={() => { setMode(mode === "create" ? "none" : "create"); setEditingTenant(null); }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors text-sm font-medium"
         >
           {mode === "create" ? <X size={16} /> : <Plus size={16} />}
           {mode === "create" ? t("tenants.cancel") : t("tenants.addTenant")}
@@ -146,7 +146,7 @@ export default function TenantsPage() {
             <textarea {...form.register("notes")} rows={2} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
           </div>
           <div className="flex gap-3">
-            <button type="submit" disabled={isPending} className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium disabled:opacity-50">
+            <button type="submit" disabled={isPending} className="px-6 py-2 bg-blue-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
               {isPending ? "..." : mode === "edit" ? t("propertyEdit.save") : t("tenants.createTenant")}
             </button>
             <button type="button" onClick={() => { setMode("none"); setEditingTenant(null); }} className="px-4 py-2.5 border border-slate-300 text-slate-700 rounded-lg text-sm">

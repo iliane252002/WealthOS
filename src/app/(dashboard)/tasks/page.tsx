@@ -269,7 +269,7 @@ export default function TasksPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">Tâches</h1>
+        <h1 className="text-[22px] font-semibold text-slate-900">Tâches</h1>
         <button
           onClick={() => {
             if (mode !== "none") {
@@ -278,7 +278,7 @@ export default function TasksPage() {
               setMode("create");
             }
           }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors text-sm font-medium"
         >
           {mode !== "none" ? <X size={16} /> : <Plus size={16} />}
           {mode !== "none" ? "Annuler" : "Nouvelle tâche"}
@@ -288,19 +288,19 @@ export default function TasksPage() {
       {/* Stats strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
-          <span className="text-2xl font-bold text-slate-900">{countTodo}</span>
+          <span className="text-2xl font-semibold text-slate-900">{countTodo}</span>
           <span className="text-sm text-slate-500">à faire</span>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
-          <span className="text-2xl font-bold text-blue-600">{countInProgress}</span>
+          <span className="text-2xl font-semibold text-blue-600">{countInProgress}</span>
           <span className="text-sm text-slate-500">en cours</span>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
-          <span className="text-2xl font-bold text-emerald-600">{countDone}</span>
+          <span className="text-2xl font-semibold text-emerald-600">{countDone}</span>
           <span className="text-sm text-slate-500">terminées</span>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
-          <span className="text-2xl font-bold text-red-600">{countOverdue}</span>
+          <span className="text-2xl font-semibold text-red-600">{countOverdue}</span>
           <span className="text-sm text-slate-500">en retard</span>
         </div>
       </div>
@@ -320,7 +320,7 @@ export default function TasksPage() {
               onClick={() => setStatusFilter(s)}
               className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 statusFilter === s
-                  ? "bg-blue-600 text-white"
+                  ? "bg-blue-700 text-white"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
@@ -446,7 +446,7 @@ export default function TasksPage() {
             <button
               type="submit"
               disabled={isPending}
-              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm font-medium"
+              className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors disabled:opacity-50 text-sm font-medium"
             >
               {isPending ? (
                 <span className="flex items-center gap-2">

@@ -128,8 +128,9 @@ function StatusBadge({ status }: { status: string }) {
     LATE: { color: "red" },
     PARTIALLY_PAID: { color: "amber" },
   };
+  const { label } = useI18n();
   const cfg = map[status] || map.PENDING;
-  return <Badge color={cfg.color}>{status}</Badge>;
+  return <Badge color={cfg.color}>{label(status)}</Badge>;
 }
 
 // ─── État des lieux components ──────────────────────
@@ -319,7 +320,7 @@ function EdlForm({
           type="button"
           disabled={isPending || !date}
           onClick={() => onSubmit({ type, date, notes })}
-          className="px-4 py-1.5 bg-blue-600 text-white rounded text-xs font-medium disabled:opacity-50"
+          className="px-4 py-1.5 bg-blue-700 text-white rounded text-xs font-medium disabled:opacity-50"
         >
           {isPending ? "Enregistrement..." : editingEdl ? "Mettre à jour" : "Créer l'état des lieux"}
         </button>
@@ -340,7 +341,7 @@ export default function LotDetailPage() {
   const queryClient = useQueryClient();
   const propertyId = params.id as string;
   const lotId = params.lotId as string;
-  const { t } = useI18n();
+  const { t, label } = useI18n();
 
   const [showLeaseForm, setShowLeaseForm] = useState(false);
   const [showChargeForm, setShowChargeForm] = useState(false);
@@ -746,7 +747,7 @@ export default function LotDetailPage() {
             <Link href={`/properties/${propertyId}`} className="hover:text-blue-600">{lot.property.name}</Link>
             <span>/</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">{lot.label}</h1>
+          <h1 className="text-[22px] font-semibold text-slate-900">{lot.label}</h1>
         </div>
         <div className="flex items-center gap-3 text-sm">
           <Badge color={lot.status === "OCCUPIED" ? "emerald" : "slate"}>
@@ -776,7 +777,7 @@ export default function LotDetailPage() {
             </div>
             <div>
               <span className="text-slate-500">{t("lotDetail.status")}</span>
-              <p className="mt-0.5"><Badge color={lot.status === "OCCUPIED" ? "emerald" : "slate"}>{lot.status}</Badge></p>
+              <p className="mt-0.5"><Badge color={lot.status === "OCCUPIED" ? "emerald" : "slate"}>{label(lot.status)}</Badge></p>
             </div>
           </div>
         </Section>
@@ -790,7 +791,7 @@ export default function LotDetailPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <p className="text-xs text-blue-500 uppercase font-semibold mb-1">{t("lotDetail.tenant")}</p>
-                    <p className="font-bold text-slate-900 text-lg">{activeLease.tenant.firstName} {activeLease.tenant.lastName}</p>
+                    <p className="font-semibold text-slate-900 text-lg">{activeLease.tenant.firstName} {activeLease.tenant.lastName}</p>
                     <div className="text-sm text-slate-600 mt-1 space-y-0.5">
                       {activeLease.tenant.email && <p>{activeLease.tenant.email}</p>}
                       {activeLease.tenant.phone && <p>{activeLease.tenant.phone}</p>}
@@ -840,7 +841,7 @@ export default function LotDetailPage() {
                               if (coTenantToAdd) addCoTenantMutation.mutate({ leaseId: activeLease.id, tenantId: coTenantToAdd });
                             }}
                             disabled={!coTenantToAdd || addCoTenantMutation.isPending}
-                            className="px-2 py-1 bg-blue-600 text-white rounded text-xs font-medium disabled:opacity-50"
+                            className="px-2 py-1 bg-blue-700 text-white rounded text-xs font-medium disabled:opacity-50"
                           >
                             Ajouter
                           </button>
@@ -871,7 +872,7 @@ export default function LotDetailPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
                   <span className="text-slate-500">{t("lotDetail.rentAmount")}</span>
-                  <p className="font-bold text-emerald-600 text-lg mt-0.5">{formatCurrency(activeLease.monthlyRent)}</p>
+                  <p className="font-semibold text-emerald-600 text-lg mt-0.5">{formatCurrency(activeLease.monthlyRent)}</p>
                 </div>
                 <div>
                   <span className="text-slate-500">{t("lotDetail.chargesAmount")}</span>
@@ -1035,7 +1036,7 @@ export default function LotDetailPage() {
                     </button>
                     <button
                       type="submit" disabled={createLeaseMutation.isPending}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50"
+                      className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-sm font-medium disabled:opacity-50"
                     >
                       {createLeaseMutation.isPending ? t("lotDetail.creating") : t("lotDetail.createLease")}
                     </button>
@@ -1047,7 +1048,7 @@ export default function LotDetailPage() {
                   <p className="text-slate-500 text-sm mb-3">{t("lotDetail.noLease")}</p>
                   <button
                     onClick={() => setShowLeaseForm(true)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium inline-flex items-center gap-2"
+                    className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-sm font-medium inline-flex items-center gap-2"
                   >
                     <Plus size={14} />
                     {t("lotDetail.createLease")}
@@ -1133,7 +1134,7 @@ export default function LotDetailPage() {
             defaultOpen
             badge={
               rentEvents.filter((r) => r.status === "LATE").length > 0
-                ? <Badge color="red">{rentEvents.filter((r) => r.status === "LATE").length} late</Badge>
+                ? <Badge color="red">{rentEvents.filter((r) => r.status === "LATE").length} {label("LATE").toLowerCase()}</Badge>
                 : undefined
             }
             action={
@@ -1337,7 +1338,7 @@ export default function LotDetailPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button type="submit" disabled={createChargeMutation.isPending} className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-medium">
+                  <button type="submit" disabled={createChargeMutation.isPending} className="px-3 py-1.5 bg-blue-700 text-white rounded text-xs font-medium">
                     {createChargeMutation.isPending ? "..." : t("lotDetail.addCharge")}
                   </button>
                   <button type="button" onClick={() => setShowChargeForm(false)} className="text-xs text-slate-500">{t("common.cancel")}</button>
@@ -1345,7 +1346,7 @@ export default function LotDetailPage() {
               </form>
             ) : (
               <div className="flex justify-end mb-3">
-                <button onClick={() => setShowChargeForm(true)} className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium">
+                <button onClick={() => setShowChargeForm(true)} className="flex items-center gap-1 px-3 py-1.5 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-xs font-medium">
                   <Plus size={12} />
                   {t("lotDetail.addCharge")}
                 </button>
@@ -1393,7 +1394,7 @@ export default function LotDetailPage() {
                   <div key={work.id} className="flex items-center justify-between p-2 bg-slate-50 rounded text-sm">
                     <span className="font-medium">{work.title}</span>
                     <div className="flex items-center gap-2">
-                      <Badge color={work.status === "COMPLETED" ? "emerald" : work.status === "IN_PROGRESS" ? "blue" : "slate"}>{work.status}</Badge>
+                      <Badge color={work.status === "COMPLETED" ? "emerald" : work.status === "IN_PROGRESS" ? "blue" : "slate"}>{label(work.status)}</Badge>
                       {work.cost && <span className="font-semibold">{formatCurrency(work.cost)}</span>}
                     </div>
                   </div>
@@ -1468,7 +1469,7 @@ export default function LotDetailPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button type="submit" disabled={createUtilityMutation.isPending} className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-medium">
+                  <button type="submit" disabled={createUtilityMutation.isPending} className="px-3 py-1.5 bg-blue-700 text-white rounded text-xs font-medium">
                     {createUtilityMutation.isPending ? "..." : t("lotDetail.addReading")}
                   </button>
                   <button type="button" onClick={() => setShowUtilityForm(false)} className="text-xs text-slate-500">{t("common.cancel")}</button>
@@ -1547,7 +1548,7 @@ export default function LotDetailPage() {
                 {lotCompliance.map((item) => (
                   <div key={item.id} className="flex items-center justify-between p-2 bg-slate-50 rounded text-sm">
                     <span className="font-medium">{item.label}</span>
-                    <Badge color={item.status === "OK" ? "emerald" : item.status === "MISSING" ? "red" : "amber"}>{item.status}</Badge>
+                    <Badge color={item.status === "OK" ? "emerald" : item.status === "MISSING" ? "red" : "amber"}>{label(item.status)}</Badge>
                   </div>
                 ))}
               </div>
@@ -1561,21 +1562,21 @@ export default function LotDetailPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
                 <span className="text-slate-500">{t("lotDetail.totalReceived")}</span>
-                <p className="text-lg font-bold text-emerald-600 mt-0.5">{formatCurrency(totalReceived)}</p>
+                <p className="text-lg font-semibold text-emerald-600 mt-0.5">{formatCurrency(totalReceived)}</p>
               </div>
               <div>
                 <span className="text-slate-500">{t("lotDetail.totalExpected")}</span>
-                <p className="text-lg font-bold text-slate-900 mt-0.5">{formatCurrency(totalExpected)}</p>
+                <p className="text-lg font-semibold text-slate-900 mt-0.5">{formatCurrency(totalExpected)}</p>
               </div>
               <div>
                 <span className="text-slate-500">{t("lotDetail.outstanding")}</span>
-                <p className={`text-lg font-bold mt-0.5 ${totalOutstanding > 0 ? "text-red-600" : "text-emerald-600"}`}>
+                <p className={`text-lg font-semibold mt-0.5 ${totalOutstanding > 0 ? "text-red-600" : "text-emerald-600"}`}>
                   {formatCurrency(totalOutstanding)}
                 </p>
               </div>
               <div>
                 <span className="text-slate-500">{t("lotDetail.collectionRate")}</span>
-                <p className="text-lg font-bold text-slate-900 mt-0.5">{collectionRate}%</p>
+                <p className="text-lg font-semibold text-slate-900 mt-0.5">{collectionRate}%</p>
               </div>
             </div>
           </Section>

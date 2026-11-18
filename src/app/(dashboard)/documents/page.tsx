@@ -120,10 +120,10 @@ export default function DocumentsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">{t("documents.title")}</h1>
+        <h1 className="text-[22px] font-semibold text-slate-900">{t("documents.title")}</h1>
         <button
           onClick={() => setShowUpload(!showUpload)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-sm font-medium"
         >
           {showUpload ? <X size={16} /> : <Upload size={16} />}
           {showUpload ? t("documents.cancel") : t("documents.addDocument")}

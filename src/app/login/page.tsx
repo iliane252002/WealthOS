@@ -39,7 +39,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-8">
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-slate-900">{t("auth.appName")}</h1>
+            <h1 className="text-[22px] font-semibold text-slate-900">{t("auth.appName")}</h1>
             <p className="text-slate-500 mt-1">{t("auth.signInTitle")}</p>
           </div>
 
@@ -81,7 +81,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              className="w-full py-2 bg-blue-700 text-white font-medium rounded-lg hover:bg-blue-800 transition-colors disabled:opacity-50"
             >
               {loading ? t("auth.signingIn") : t("auth.signIn")}
             </button>

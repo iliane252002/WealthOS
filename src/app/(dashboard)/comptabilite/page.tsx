@@ -115,7 +115,7 @@ export default function ComptabilitePage() {
             <BookOpen size={22} className="text-blue-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">{t("accounting.title")}</h1>
+            <h1 className="text-[22px] font-semibold text-slate-900">{t("accounting.title")}</h1>
             <p className="text-sm text-slate-500">{t("accounting.subtitle")}</p>
           </div>
         </div>
@@ -178,7 +178,7 @@ export default function ComptabilitePage() {
               <TrendingUp size={16} className="text-emerald-600" />
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("accounting.revenues")}</span>
             </div>
-            <p className="text-2xl font-bold text-emerald-700">{fmt(data?.totalRevenue ?? 0)}</p>
+            <p className="text-2xl font-semibold text-emerald-700">{fmt(data?.totalRevenue ?? 0)}</p>
             <p className="text-xs text-slate-400 mt-1">PCG 706x</p>
           </div>
 
@@ -188,7 +188,7 @@ export default function ComptabilitePage() {
               <TrendingDown size={16} className="text-red-500" />
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t("accounting.expenses")}</span>
             </div>
-            <p className="text-2xl font-bold text-red-600">{fmt(data?.totalExpenses ?? 0)}</p>
+            <p className="text-2xl font-semibold text-red-600">{fmt(data?.totalExpenses ?? 0)}</p>
             <p className="text-xs text-slate-400 mt-1">PCG 6xxx</p>
           </div>
 
@@ -197,7 +197,7 @@ export default function ComptabilitePage() {
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-600">{t("accounting.netResult")}</span>
             </div>
-            <p className={`text-2xl font-bold ${(data?.netResult ?? 0) >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+            <p className={`text-2xl font-semibold ${(data?.netResult ?? 0) >= 0 ? "text-emerald-700" : "text-red-700"}`}>
               {fmt(data?.netResult ?? 0)}
             </p>
             <p className="text-xs text-slate-400 mt-1">
@@ -262,8 +262,8 @@ export default function ComptabilitePage() {
                     </tr>
                   ))}
                   <tr className="bg-emerald-50 border-t border-emerald-200">
-                    <td colSpan={2} className="px-5 py-3 font-bold text-slate-700">Total produits</td>
-                    <td className="px-5 py-3 text-right font-bold text-emerald-700">{fmt(data?.totalRevenue ?? 0)}</td>
+                    <td colSpan={2} className="px-5 py-3 font-semibold text-slate-700">Total produits</td>
+                    <td className="px-5 py-3 text-right font-semibold text-emerald-700">{fmt(data?.totalRevenue ?? 0)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -298,8 +298,8 @@ export default function ComptabilitePage() {
                     </tr>
                   ))}
                   <tr className="bg-red-50 border-t border-red-200">
-                    <td colSpan={2} className="px-5 py-3 font-bold text-slate-700">Total charges</td>
-                    <td className="px-5 py-3 text-right font-bold text-red-600">{fmt(data?.totalExpenses ?? 0)}</td>
+                    <td colSpan={2} className="px-5 py-3 font-semibold text-slate-700">Total charges</td>
+                    <td className="px-5 py-3 text-right font-semibold text-red-600">{fmt(data?.totalExpenses ?? 0)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -314,7 +314,7 @@ export default function ComptabilitePage() {
                   <p className="text-sm font-semibold text-slate-700 uppercase tracking-wider">{t("accounting.netResult")} {year}</p>
                   {sciFilter !== "all" && <p className="text-xs text-slate-500 mt-0.5">{sciFilter === "personal" ? t("accounting.personalProperties") : sciFilter}</p>}
                 </div>
-                <p className={`text-3xl font-bold ${(data?.netResult ?? 0) >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                <p className={`text-3xl font-semibold ${(data?.netResult ?? 0) >= 0 ? "text-emerald-700" : "text-red-700"}`}>
                   {fmt(data?.netResult ?? 0)}
                 </p>
               </div>
@@ -440,7 +440,7 @@ export default function ComptabilitePage() {
                     </tr>
                   ))}
                   {/* Totals row */}
-                  <tr className="bg-slate-100 border-t border-slate-300 font-bold">
+                  <tr className="bg-slate-100 border-t border-slate-300 font-semibold">
                     <td colSpan={4} className="px-5 py-3 text-slate-700 text-sm">Total</td>
                     <td className="px-5 py-3 text-right text-red-700 text-sm whitespace-nowrap">{fmt(data?.totalExpenses ?? 0)}</td>
                     <td className="px-5 py-3 text-right text-emerald-700 text-sm whitespace-nowrap">{fmt(data?.totalRevenue ?? 0)}</td>

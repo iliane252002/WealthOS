@@ -1,34 +1,122 @@
 @import "tailwindcss";
 
+/*
+  Charte WealthOS — sobre, type outil de gestion / cabinet.
+  Les pages utilisent les classes Tailwind slate / blue / purple :
+  on redéfinit ces palettes ici pour que tout le site suive la charte
+  sans réécrire chaque page.
+    - slate  → gris neutres légèrement chauds (papier, traits, texte)
+    - blue   → bleu encre (accent unique : actions, liens, sélection)
+    - purple → ramené sur le bleu encre (plus de couleurs décoratives)
+  Rayons réduits, ombres supprimées sauf pour les menus flottants.
+*/
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f6f6f4;
+  --foreground: #1c1b19;
+}
+
+@theme {
+  --color-slate-50: #f6f6f4;
+  --color-slate-100: #eeede9;
+  --color-slate-200: #e2e0db;
+  --color-slate-300: #cdcac3;
+  --color-slate-400: #8e8b83;
+  --color-slate-500: #6b6862;
+  --color-slate-600: #55534d;
+  --color-slate-700: #403e3a;
+  --color-slate-800: #2b2a27;
+  --color-slate-900: #1c1b19;
+  --color-slate-950: #121110;
+
+  --color-blue-50: #f1f4f8;
+  --color-blue-100: #e1e8f0;
+  --color-blue-200: #c4d1e0;
+  --color-blue-300: #9cb0c8;
+  --color-blue-400: #6d88a8;
+  --color-blue-500: #47648a;
+  --color-blue-600: #2c4a70;
+  --color-blue-700: #223b5a;
+  --color-blue-800: #1a2e47;
+  --color-blue-900: #142436;
+  --color-blue-950: #0d1824;
+
+  --color-purple-50: #f1f4f8;
+  --color-purple-100: #e1e8f0;
+  --color-purple-200: #c4d1e0;
+  --color-purple-300: #9cb0c8;
+  --color-purple-400: #6d88a8;
+  --color-purple-500: #47648a;
+  --color-purple-600: #2c4a70;
+  --color-purple-700: #223b5a;
+
+  /* Vert / rouge / ambre un peu désaturés pour rester lisibles sans crier */
+  --color-emerald-50: #eff6f1;
+  --color-emerald-100: #dcebe1;
+  --color-emerald-200: #b9d6c3;
+  --color-emerald-500: #3f8a5c;
+  --color-emerald-600: #2f7049;
+  --color-emerald-700: #255a3b;
+  --color-red-50: #fbf1f0;
+  --color-red-100: #f5dfdc;
+  --color-red-200: #ebc1bc;
+  --color-red-400: #cf6f63;
+  --color-red-500: #bd4a3d;
+  --color-red-600: #a33a2e;
+  --color-red-700: #862f25;
+
+  --radius-md: 5px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 10px;
+
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: 0 6px 20px -6px rgb(28 27 25 / 0.18), 0 1px 3px rgb(28 27 25 / 0.08);
+  --shadow-xl: 0 12px 32px -8px rgb(28 27 25 / 0.22);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  font-feature-settings: "tnum" 1;
+}
+
+/* Les montants s'alignent en colonnes */
+table {
+  font-variant-numeric: tabular-nums;
+}
+
+h1 {
+  letter-spacing: -0.01em;
+}
+
+/* Focus clavier visible, discret */
+:focus-visible {
+  outline: 2px solid var(--color-blue-500);
+  outline-offset: 2px;
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
+  background: var(--color-slate-300);
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--color-slate-400);
 }

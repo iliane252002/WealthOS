@@ -41,7 +41,7 @@ export default function PropertiesPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-900">{t("properties.title")}</h1>
+          <h1 className="text-[22px] font-semibold text-slate-900">{t("properties.title")}</h1>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(3)].map((_, i) => (
@@ -65,10 +65,10 @@ export default function PropertiesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">{t("properties.title")}</h1>
+        <h1 className="text-[22px] font-semibold text-slate-900">{t("properties.title")}</h1>
         <Link
           href="/properties/new"
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors text-sm font-medium"
         >
           <Plus size={16} />
           {t("properties.addProperty")}
@@ -82,7 +82,7 @@ export default function PropertiesPage() {
           <p className="text-slate-500 mb-6">{t("properties.noPropertiesDesc")}</p>
           <Link
             href="/properties/new"
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors text-sm font-medium"
           >
             <Plus size={16} />
             {t("properties.addFirst")}

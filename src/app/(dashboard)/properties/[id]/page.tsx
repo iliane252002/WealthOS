@@ -283,7 +283,7 @@ function LoanCard({ loan, onDelete }: { loan: Loan; onDelete: () => void }) {
 // ─── Smart Guidance ─────────────────────────────────
 
 function SmartGuidance({ property }: { property: PropertyDetail }) {
-  const { t } = useI18n();
+  const { t, label } = useI18n();
   const hints: { text: string; link?: string }[] = [];
 
   if (!property.type) hints.push({ text: t("guidance.noType"), link: `/properties/${property.id}/edit` });
@@ -332,7 +332,7 @@ export default function PropertyDetailPage() {
   // Extra lot expense fields (outside Zod schema, sent directly in body)
   const [taxeFonciere, setTaxeFonciere] = useState("");
   const [chargesCopro, setChargesCopro] = useState("");
-  const { t } = useI18n();
+  const { t, label } = useI18n();
 
   const { data: property, isLoading } = useQuery<PropertyDetail>({
     queryKey: ["properties", propertyId],
@@ -530,14 +530,14 @@ export default function PropertyDetailPage() {
           <ArrowLeft size={20} className="text-slate-600" />
         </Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-slate-900">{property.name}</h1>
+          <h1 className="text-[22px] font-semibold text-slate-900">{property.name}</h1>
           <div className="flex items-center gap-2 text-sm text-slate-500 mt-1">
             <MapPin size={14} />
             {property.address}{property.city ? `, ${property.postalCode || ""} ${property.city}` : ""}
           </div>
         </div>
         <div className="flex items-center gap-3 text-sm">
-          {property.type && <Badge color="blue">{property.type}</Badge>}
+          {property.type && <Badge color="blue">{label(property.type)}</Badge>}
           {totalLots > 0 && (
             <Badge color={occupiedLots === totalLots ? "emerald" : "amber"}>
               {occupiedLots}/{totalLots} {t("propertyDetail.occupied")}
@@ -566,11 +566,11 @@ export default function PropertyDetailPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
               <span className="text-slate-500">{t("propertyDetail.type")}</span>
-              <p className="font-medium text-slate-900 mt-0.5">{property.type || "—"}</p>
+              <p className="font-medium text-slate-900 mt-0.5">{property.type ? label(property.type) : "—"}</p>
             </div>
             <div>
               <span className="text-slate-500">{t("propertyDetail.ownership")}</span>
-              <p className="font-medium text-slate-900 mt-0.5">{property.ownershipType}</p>
+              <p className="font-medium text-slate-900 mt-0.5">{label(property.ownershipType)}</p>
             </div>
             <div>
               <span className="text-slate-500">{t("propertyDetail.surface")}</span>
@@ -614,7 +614,7 @@ export default function PropertyDetailPage() {
             <div className="flex justify-end">
               <button
                 onClick={() => setShowLotForm(!showLotForm)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium"
+                className="flex items-center gap-2 px-3 py-1.5 bg-blue-700 text-white rounded-lg hover:bg-blue-800 text-xs font-medium"
               >
                 <Plus size={14} />
                 {t("propertyDetail.addLot")}
@@ -702,7 +702,7 @@ export default function PropertyDetailPage() {
                   <button
                     type="submit"
                     disabled={createLotMutation.isPending}
-                    className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-medium disabled:opacity-50"
+                    className="px-3 py-1.5 bg-blue-700 text-white rounded text-xs font-medium disabled:opacity-50"
                   >
                     {createLotMutation.isPending ? t("propertyDetail.creatingLot") : t("propertyDetail.createLot")}
                   </button>
@@ -735,7 +735,7 @@ export default function PropertyDetailPage() {
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-semibold text-slate-900 text-sm group-hover:text-blue-600">{lot.label}</h4>
                         <div className="flex items-center gap-2">
-                          <Badge color={lot.status === "OCCUPIED" ? "emerald" : "slate"}>{lot.status}</Badge>
+                          <Badge color={lot.status === "OCCUPIED" ? "emerald" : "slate"}>{label(lot.status)}</Badge>
                           <button
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteLotMutation.mutate(lot.id); }}
                             className="p-1 text-slate-400 hover:text-red-500"
@@ -1021,7 +1021,7 @@ export default function PropertyDetailPage() {
                   <div key={work.id} className="flex items-center justify-between p-2 bg-slate-50 rounded text-sm">
                     <span className="font-medium">{work.title}</span>
                     <div className="flex items-center gap-2">
-                      <Badge color={work.status === "COMPLETED" ? "emerald" : work.status === "IN_PROGRESS" ? "blue" : "slate"}>{work.status}</Badge>
+                      <Badge color={work.status === "COMPLETED" ? "emerald" : work.status === "IN_PROGRESS" ? "blue" : "slate"}>{label(work.status)}</Badge>
                       {work.cost && <span className="font-semibold">{formatCurrency(work.cost)}</span>}
                     </div>
                   </div>
@@ -1059,22 +1059,22 @@ export default function PropertyDetailPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
                 <span className="text-slate-500">{t("dashboard.totalRentReceived")}</span>
-                <p className="text-lg font-bold text-emerald-600 mt-0.5">{formatCurrency(totalMonthlyRent)}<span className="text-xs text-slate-400 font-normal">/mo</span></p>
+                <p className="text-lg font-semibold text-emerald-600 mt-0.5">{formatCurrency(totalMonthlyRent)}<span className="text-xs text-slate-400 font-normal">/mo</span></p>
               </div>
               <div>
                 <span className="text-slate-500">{t("propertyDetail.occupancy")}</span>
-                <p className="text-lg font-bold text-slate-900 mt-0.5">{totalLots > 0 ? `${Math.round((occupiedLots / totalLots) * 100)}%` : t("common.na")}</p>
+                <p className="text-lg font-semibold text-slate-900 mt-0.5">{totalLots > 0 ? `${Math.round((occupiedLots / totalLots) * 100)}%` : t("common.na")}</p>
               </div>
               {property.currentValue && (
                 <div>
                   <span className="text-slate-500">{t("propertyDetail.currentValue")}</span>
-                  <p className="text-lg font-bold text-slate-900 mt-0.5">{formatCurrency(property.currentValue)}</p>
+                  <p className="text-lg font-semibold text-slate-900 mt-0.5">{formatCurrency(property.currentValue)}</p>
                 </div>
               )}
               {loans.length > 0 && (
                 <div>
                   <span className="text-slate-500">Mensualités crédit</span>
-                  <p className="text-lg font-bold text-purple-600 mt-0.5">
+                  <p className="text-lg font-semibold text-purple-600 mt-0.5">
                     {formatCurrency(
                       loans.reduce((sum, loan) => {
                         const pmt = loan.monthlyPayment ?? calcMonthlyPayment(loan.originalAmount, loan.interestRate, loan.durationMonths);
