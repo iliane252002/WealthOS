@@ -239,6 +239,10 @@ const translations = {
   "investments.managedByOperations": { en: "Calculated from the transactions of this position.", fr: "Calculés à partir des opérations de la position." },
   "investments.deleteOperation": { en: "Delete transaction", fr: "Supprimer l'opération" },
   "investments.confirmDelete": { en: "Confirm", fr: "Confirmer" },
+  "investments.loadError": {
+    en: "Investment data could not be loaded. If the site was just updated, the database probably still needs its update (npx prisma migrate deploy).",
+    fr: "Impossible de charger les placements. Si le site vient d'être mis à jour, la base de données attend sans doute sa mise à jour (npx prisma migrate deploy).",
+  },
 
   // ── Documents ──
   "documents.title": { en: "Documents", fr: "Documents" },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { formatCurrency, formatPercent } from "@/lib/utils";
+import { formatCurrency, formatPercent, fetchJson } from "@/lib/utils";
 import { useState, useRef, useEffect, useCallback, Fragment } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -98,9 +98,10 @@ export default function InvestmentsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [syncReport, setSyncReport] = useState<SyncReport | null>(null);
 
-  const { data: history, isFetching: historyLoading } = useQuery<History>({
+  const { data: history, isFetching: historyLoading, isError: historyError } = useQuery<History>({
     queryKey: ["investments-history", range],
-    queryFn: () => fetch(`/api/investments/history?range=${range}`).then((r) => r.json()),
+    queryFn: () => fetchJson<History>(`/api/investments/history?range=${range}`),
+    retry: 1,
     placeholderData: (prev) => prev,
   });
 
@@ -120,9 +121,10 @@ export default function InvestmentsPage() {
   const [mode, setMode] = useState<"none" | "create" | "edit">("none");
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const { data: investments, isLoading } = useQuery<Investment[]>({
+  const { data: investments, isLoading, isError: investmentsError } = useQuery<Investment[]>({
     queryKey: ["investments"],
-    queryFn: () => fetch("/api/investments").then((r) => r.json()),
+    queryFn: () => fetchJson<Investment[]>("/api/investments"),
+    retry: 1,
   });
 
   const [stockSearch, setStockSearch] = useState("");
@@ -315,6 +317,12 @@ export default function InvestmentsPage() {
           {mode !== "none" ? t("investments.cancel") : t("investments.addPosition")}
         </button>
       </div>
+
+      {(investmentsError || historyError) && (
+        <div role="alert" className="border border-red-200 bg-red-50 text-red-700 rounded-lg px-4 py-3 text-[13px]">
+          {t("investments.loadError")}
+        </div>
+      )}
 
       {/* Évolution du portefeuille */}
       <section className="bg-white border border-slate-200 rounded-lg">
@@ -778,7 +786,7 @@ export default function InvestmentsPage() {
         <div className="bg-white rounded-xl border border-slate-200 p-6 animate-pulse">
           <div className="h-32 bg-slate-200 rounded" />
         </div>
-      ) : !investments || investments.length === 0 ? (
+      ) : investmentsError ? null : !investments || investments.length === 0 ? (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center">
           <TrendingUp size={48} className="mx-auto text-slate-300 mb-4" />
           <h3 className="text-lg font-semibold text-slate-900 mb-2">

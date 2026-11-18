@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, fetchJson } from "@/lib/utils";
 import { isoToday } from "@/components/investments/dates";
 
 interface TxRow {
@@ -43,9 +43,10 @@ export function TransactionsPanel({
   const queryClient = useQueryClient();
   const key = ["investment-transactions", investmentId];
 
-  const { data, isLoading } = useQuery<PositionState>({
+  const { data, isLoading, isError } = useQuery<PositionState>({
     queryKey: key,
-    queryFn: () => fetch(`/api/investments/${investmentId}/transactions`).then((r) => r.json()),
+    queryFn: () => fetchJson<PositionState>(`/api/investments/${investmentId}/transactions`),
+    retry: 1,
   });
 
   const [form, setForm] = useState({ type: "BUY", date: isoToday(), quantity: "", price: "", fees: "" });
@@ -109,6 +110,10 @@ export function TransactionsPanel({
   const fmtDate = (iso: string) =>
     new Date(iso + "T00:00:00").toLocaleDateString(locale === "fr" ? "fr-FR" : "en-GB");
   const fmtQty = (q: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 8 }).format(q);
+
+  if (isError) {
+    return <p className="text-[13px] text-red-600">{t("investments.loadError")}</p>;
+  }
 
   if (isLoading || !data) {
     return (
