@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { refreshPropertyEstimate } from "@/lib/estimation";
 import { updatePropertySchema } from "@/lib/validators/property";
 
 export async function GET(
@@ -68,10 +69,19 @@ export async function PUT(
       return NextResponse.json({ error: "Property not found" }, { status: 404 });
     }
 
-    const property = await db.property.update({
+    let property = await db.property.update({
       where: { id },
       data: parsed.data,
     });
+
+    // Adresse, type ou surface modifiés (ou jamais estimé) : on refait l'estimation
+    const changed = (["address", "postalCode", "city", "type", "surface"] as const).some(
+      (k) => k in parsed.data && parsed.data[k] !== existing[k]
+    );
+    if (!property.currentValue && (changed || !existing.estimatedAt || existing.currentValue != null)) {
+      await refreshPropertyEstimate(id).catch((e) => console.error("estimate error:", e));
+      property = await db.property.findUniqueOrThrow({ where: { id } });
+    }
 
     return NextResponse.json(property);
   } catch (error) {

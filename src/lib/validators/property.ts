@@ -15,7 +15,7 @@ export const createPropertySchema = z.object({
   sciName: z.string().optional(), // SCI name when ownershipType === "sci"
   acquisitionDate: z.string().optional(),
   acquisitionPrice: z.number().positive().optional(),
-  currentValue: z.number().positive().optional(),
+  currentValue: z.number().positive().nullable().optional(), // null = revenir à l'estimation automatique
   surface: z.number().positive().optional(),
   description: z.string().optional(),
   imageUrl: z.string().optional(),

@@ -48,7 +48,7 @@ export async function GET() {
 
   // Growth trend (15 pts)
   const totalAcquisition = properties.reduce((s, p) => s + (p.acquisitionPrice || 0), 0);
-  const totalCurrent = properties.reduce((s, p) => s + (p.currentValue || p.acquisitionPrice || 0), 0);
+  const totalCurrent = properties.reduce((s, p) => s + (p.currentValue || p.estimatedValue || p.acquisitionPrice || 0), 0);
   let growthTrend = 0;
   if (totalAcquisition > 0) {
     const growthPct = ((totalCurrent - totalAcquisition) / totalAcquisition) * 100;

@@ -95,6 +95,11 @@ model Property {
   acquisitionDate  String?
   acquisitionPrice Float?
   currentValue     Float?
+  // Estimation automatique (ventes DVF comparables) quand currentValue n'est pas saisie
+  estimatedValue      Float?
+  estimatedPricePerM2 Float?
+  estimateDetails     String?   // JSON : commune, nombre de ventes, rayon, période
+  estimatedAt         DateTime?
   surface          Float?
   description      String?
   imageUrl         String?

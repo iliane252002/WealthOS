@@ -13,6 +13,7 @@ interface Property {
   address: string;
   city: string;
   currentValue: number | null;
+  estimatedValue: number | null;
   acquisitionPrice: number | null;
   lots: Array<{ id: string; status: string }>;
 }
@@ -94,9 +95,12 @@ export default function PropertiesPage() {
             const totalLots = property.lots?.length || 0;
             const occupiedLots = property.lots?.filter((l) => l.status === "OCCUPIED").length || 0;
             const occupancy = totalLots > 0 ? Math.round((occupiedLots / totalLots) * 100) : 0;
+            // Valeur saisie, sinon estimation à partir des ventes du quartier
+            const value = property.currentValue ?? property.estimatedValue;
+            const isEstimate = property.currentValue == null && property.estimatedValue != null;
             const grossYield =
-              property.currentValue && property.acquisitionPrice
-                ? ((property.currentValue - property.acquisitionPrice) / property.acquisitionPrice) * 100
+              value && property.acquisitionPrice
+                ? ((value - property.acquisitionPrice) / property.acquisitionPrice) * 100
                 : null;
 
             return (
@@ -122,7 +126,12 @@ export default function PropertiesPage() {
                   <div>
                     <p className="text-xs text-slate-500">{t("properties.value")}</p>
                     <p className="text-sm font-semibold text-slate-900">
-                      {property.currentValue ? formatCurrency(property.currentValue) : "—"}
+                      {value ? formatCurrency(value) : "—"}
+                      {isEstimate && (
+                        <span className="ml-1.5 text-[11px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
+                          {t("estimate.badge")}
+                        </span>
+                      )}
                     </p>
                   </div>
                   {totalLots > 0 && (
@@ -139,7 +148,7 @@ export default function PropertiesPage() {
                   <div className="mt-3">
                     <p className="text-xs text-slate-500">{t("properties.gainLoss")}</p>
                     <p className={`text-sm font-semibold ${grossYield >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                      {formatCurrency(property.currentValue! - property.acquisitionPrice!)} ({grossYield >= 0 ? "+" : ""}{grossYield.toFixed(1)}%)
+                      {formatCurrency(value! - property.acquisitionPrice!)} ({grossYield >= 0 ? "+" : ""}{grossYield.toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %)
                     </p>
                   </div>
                 )}

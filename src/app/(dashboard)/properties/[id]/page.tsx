@@ -14,6 +14,7 @@ import { useState, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createLotSchema, type CreateLotInput } from "@/lib/validators/lot";
+import { EstimateNote } from "@/components/properties/estimate-note";
 import { useI18n } from "@/lib/i18n";
 
 interface PropertyDetail {
@@ -28,6 +29,10 @@ interface PropertyDetail {
   acquisitionDate: string | null;
   acquisitionPrice: number | null;
   currentValue: number | null;
+  estimatedValue: number | null;
+  estimatedPricePerM2: number | null;
+  estimateDetails: string | null;
+  estimatedAt: string | null;
   surface: number | null;
   lots: Array<{
     id: string;
@@ -287,7 +292,7 @@ function SmartGuidance({ property }: { property: PropertyDetail }) {
   const hints: { text: string; link?: string }[] = [];
 
   if (!property.type) hints.push({ text: t("guidance.noType"), link: `/properties/${property.id}/edit` });
-  if (!property.currentValue) hints.push({ text: t("guidance.noValue"), link: `/properties/${property.id}/edit` });
+  if (property.currentValue == null && property.estimatedValue == null) hints.push({ text: t("guidance.noValue"), link: `/properties/${property.id}/edit` });
   if (!property.lots || property.lots.length === 0) hints.push({ text: t("guidance.noLots") });
 
   (property.lots || []).forEach((lot) => {
@@ -581,26 +586,47 @@ export default function PropertyDetailPage() {
               <p className="font-medium text-slate-900 mt-0.5">{property.country}</p>
             </div>
           </div>
-          {(property.acquisitionPrice || property.currentValue) && (
+          {(() => {
+            // Valeur saisie, sinon estimation à partir des ventes du quartier
+            const value = property.currentValue ?? property.estimatedValue;
+            const isEstimate = property.currentValue == null;
+            return (
+            <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-4 pt-4 border-t border-slate-100">
               <div>
                 <span className="text-slate-500">{t("propertyDetail.purchasePrice")}</span>
                 <p className="font-semibold text-slate-900 mt-0.5">{property.acquisitionPrice ? formatCurrency(property.acquisitionPrice) : "—"}</p>
               </div>
               <div>
-                <span className="text-slate-500">{t("propertyDetail.currentValue")}</span>
-                <p className="font-semibold text-slate-900 mt-0.5">{property.currentValue ? formatCurrency(property.currentValue) : "—"}</p>
+                <span className="text-slate-500">{isEstimate ? t("estimate.title") : t("propertyDetail.currentValue")}</span>
+                <p className="font-semibold text-slate-900 mt-0.5">
+                  {value ? formatCurrency(value) : "—"}
+                  {isEstimate && value != null && (
+                    <span className="ml-1.5 text-[11px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">{t("estimate.badge")}</span>
+                  )}
+                </p>
               </div>
-              {property.acquisitionPrice && property.currentValue && (
+              {property.acquisitionPrice && value && (
                 <div>
                   <span className="text-slate-500">{t("properties.gainLoss")}</span>
-                  <p className={`font-semibold mt-0.5 ${property.currentValue >= property.acquisitionPrice ? "text-emerald-600" : "text-red-600"}`}>
-                    {formatCurrency(property.currentValue - property.acquisitionPrice)}
+                  <p className={`font-semibold mt-0.5 ${value >= property.acquisitionPrice ? "text-emerald-600" : "text-red-600"}`}>
+                    {formatCurrency(value - property.acquisitionPrice)}
                   </p>
                 </div>
               )}
             </div>
-          )}
+            {isEstimate && (
+              <EstimateNote
+                propertyId={property.id}
+                pricePerM2={property.estimatedPricePerM2}
+                detailsJson={property.estimateDetails}
+                estimatedAt={property.estimatedAt}
+                propertyType={property.type}
+              />
+            )}
+            </>
+            );
+          })()}
         </Section>
 
         {/* 2. Lots & Tenants */}
@@ -1065,10 +1091,10 @@ export default function PropertyDetailPage() {
                 <span className="text-slate-500">{t("propertyDetail.occupancy")}</span>
                 <p className="text-lg font-semibold text-slate-900 mt-0.5">{totalLots > 0 ? `${Math.round((occupiedLots / totalLots) * 100)}%` : t("common.na")}</p>
               </div>
-              {property.currentValue && (
+              {(property.currentValue ?? property.estimatedValue) != null && (
                 <div>
-                  <span className="text-slate-500">{t("propertyDetail.currentValue")}</span>
-                  <p className="text-lg font-semibold text-slate-900 mt-0.5">{formatCurrency(property.currentValue)}</p>
+                  <span className="text-slate-500">{property.currentValue == null ? t("estimate.title") : t("propertyDetail.currentValue")}</span>
+                  <p className="text-lg font-semibold text-slate-900 mt-0.5">{formatCurrency((property.currentValue ?? property.estimatedValue)!)}</p>
                 </div>
               )}
               {loans.length > 0 && (

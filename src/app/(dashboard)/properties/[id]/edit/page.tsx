@@ -59,7 +59,8 @@ export default function EditPropertyPage() {
     mutationFn: async (data: CreatePropertyInput) => {
       const cleaned = { ...data };
       if (cleaned.acquisitionPrice !== undefined && isNaN(cleaned.acquisitionPrice as number)) delete cleaned.acquisitionPrice;
-      if (cleaned.currentValue !== undefined && isNaN(cleaned.currentValue as number)) delete cleaned.currentValue;
+      // Champ vidé : on efface la valeur saisie pour revenir à l'estimation automatique
+      if (cleaned.currentValue === undefined || cleaned.currentValue === null || isNaN(cleaned.currentValue as number)) cleaned.currentValue = null;
       if (cleaned.surface !== undefined && isNaN(cleaned.surface as number)) delete cleaned.surface;
       if (cleaned.ownershipType !== "sci") cleaned.sciName = undefined;
 
@@ -213,6 +214,7 @@ export default function EditPropertyPage() {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.currentValue")}</label>
               <input {...register("currentValue", { valueAsNumber: true })} type="number" step="0.01" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                <p className="text-xs text-slate-500 mt-1">{t("estimate.formHint")}</p>
             </div>
           </div>
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { refreshPropertyEstimate } from "@/lib/estimation";
 import { createPropertySchema } from "@/lib/validators/property";
 
 export async function GET() {
@@ -59,12 +60,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
 
-    const property = await db.property.create({
+    let property = await db.property.create({
       data: {
         ...parsed.data,
         userId: session.user.id,
       },
     });
+
+    // Valeur non saisie : on l'estime à partir des ventes du quartier
+    if (!property.currentValue) {
+      await refreshPropertyEstimate(property.id).catch((e) => console.error("estimate error:", e));
+      property = await db.property.findUniqueOrThrow({ where: { id: property.id } });
+    }
 
     return NextResponse.json(property, { status: 201 });
   } catch (error) {

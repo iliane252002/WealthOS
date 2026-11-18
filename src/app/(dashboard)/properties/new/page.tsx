@@ -36,7 +36,7 @@ export default function NewPropertyPage() {
       // Clean NaN values from optional number fields (empty inputs → NaN with valueAsNumber)
       const cleaned = { ...data };
       if (cleaned.acquisitionPrice !== undefined && isNaN(cleaned.acquisitionPrice)) delete cleaned.acquisitionPrice;
-      if (cleaned.currentValue !== undefined && isNaN(cleaned.currentValue)) delete cleaned.currentValue;
+      if (cleaned.currentValue !== undefined && isNaN(cleaned.currentValue as number)) delete cleaned.currentValue;
       if (cleaned.surface !== undefined && isNaN(cleaned.surface)) delete cleaned.surface;
       if (cleaned.ownershipType !== "sci") cleaned.sciName = undefined;
 
@@ -175,6 +175,7 @@ export default function NewPropertyPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">{t("propertyNew.currentValue")}</label>
                 <input {...register("currentValue", { valueAsNumber: true })} type="number" step="0.01" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                <p className="text-xs text-slate-500 mt-1">{t("estimate.formHint")}</p>
               </div>
             </div>
 

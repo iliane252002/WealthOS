@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { storedRateToEur } from "@/lib/market";
+import { effectiveValue } from "@/lib/estimation";
 
 export async function GET() {
   const session = await auth();
@@ -21,7 +22,7 @@ export async function GET() {
   });
 
   const totalRealEstateValue = properties.reduce(
-    (sum, p) => sum + (p.currentValue || 0),
+    (sum, p) => sum + (effectiveValue(p) ?? 0),
     0
   );
 
@@ -96,7 +97,7 @@ export async function GET() {
 
   // Properties missing key data
   const propertiesMissingType = properties.filter((p) => !p.type).length;
-  const propertiesMissingValue = properties.filter((p) => !p.currentValue).length;
+  const propertiesMissingValue = properties.filter((p) => effectiveValue(p) == null).length;
   const vacantLots = allLots.filter((l) => l.status === "VACANT").length;
 
   // Total outstanding (unpaid late rents)
