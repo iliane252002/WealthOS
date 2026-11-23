@@ -65,6 +65,8 @@ export function AddPositionForm({
   const [advanced, setAdvanced] = useState(false);
   const [quantity, setQuantity] = useState("");
   const [unitPrice, setUnitPrice] = useState("");
+  const [customPrice, setCustomPrice] = useState(false);
+  const [priceCurrency, setPriceCurrency] = useState("EUR");
   const [broker, setBroker] = useState("");
   const [account, setAccount] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +81,7 @@ export function AddPositionForm({
   });
 
   // Aperçu : cours du jour choisi et nombre de parts correspondant
-  const { data: quote, isFetching: quoting, isError: noQuote } = useQuery<{ price: number; date: string }>({
+  const { data: quote, isFetching: quoting, isError: noQuote } = useQuery<{ price: number; date: string; quoteCurrency?: string }>({
     queryKey: ["stock-quote", stock?.symbol, date],
     queryFn: async () => {
       const res = await fetch(`/api/stocks/quote?symbol=${encodeURIComponent(stock!.symbol)}&date=${date}`);
@@ -89,6 +91,20 @@ export function AddPositionForm({
     enabled: listed && !!stock && /^\d{4}-\d{2}-\d{2}$/.test(date),
     retry: false,
   });
+
+  // Même cours dans la devise de cotation (ex. USD) : sert de taux de change pour un prix saisi en devise
+  const quoteCurrency = quote?.quoteCurrency && quote.quoteCurrency !== "EUR" ? quote.quoteCurrency : null;
+  const { data: nativeQuote } = useQuery<{ price: number }>({
+    queryKey: ["stock-quote", stock?.symbol, date, quoteCurrency],
+    queryFn: async () => {
+      const res = await fetch(`/api/stocks/quote?symbol=${encodeURIComponent(stock!.symbol)}&date=${date}&currency=${quoteCurrency}`);
+      if (!res.ok) throw new Error("no quote");
+      return res.json();
+    },
+    enabled: !!stock && !!quoteCurrency,
+    retry: false,
+  });
+  const fxToEur = quote && nativeQuote ? quote.price / nativeQuote.price : undefined;
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -101,7 +117,26 @@ export function AddPositionForm({
   const amountValue = parseNumber(amount);
   const qtyValue = parseNumber(quantity);
   const priceValue = parseNumber(unitPrice);
-  const useQtyPrice = advanced && qtyValue !== undefined && priceValue !== undefined;
+  // Prix réellement payé (IPO, ordre à cours limité…), converti en euros si saisi en devise
+  const paidPriceEur =
+    customPrice && priceValue !== undefined
+      ? priceCurrency === "EUR"
+        ? priceValue
+        : fxToEur !== undefined
+          ? priceValue * fxToEur
+          : undefined
+      : undefined;
+  const qtyUsed = advanced ? qtyValue : undefined;
+  // Quantité et prix calculés côté formulaire ; sinon le serveur prend le cours de clôture du jour
+  const explicit: { quantity: number; price: number } | null =
+    paidPriceEur !== undefined && qtyUsed !== undefined
+      ? { quantity: qtyUsed, price: paidPriceEur }
+      : paidPriceEur !== undefined && amountValue !== undefined
+        ? { quantity: amountValue / paidPriceEur, price: paidPriceEur }
+        : qtyUsed !== undefined && amountValue !== undefined
+          ? { quantity: qtyUsed, price: amountValue / qtyUsed }
+          : null;
+  const useQtyPrice = listed && explicit !== null;
   const fmtDate = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString(locale === "fr" ? "fr-FR" : "en-GB");
   const fmtQty = (q: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: q < 1 ? 6 : 3 }).format(q);
 
@@ -110,6 +145,7 @@ export function AddPositionForm({
     setError(null);
     if (listed && !stock) return setError(t("investments.whichAsset"));
     if (!listed && !name.trim()) return setError(t("investments.name"));
+    if (customPrice && priceValue !== undefined && paidPriceEur === undefined) return setError(t("investments.noFx"));
     if (!useQtyPrice && amountValue === undefined) return setError(t("investments.amountHint"));
 
     const body: Record<string, unknown> = {
@@ -122,8 +158,8 @@ export function AddPositionForm({
       accountName: account.trim() || undefined,
     };
     if (useQtyPrice) {
-      body.quantity = qtyValue;
-      body.buyPrice = priceValue;
+      body.quantity = Number(explicit!.quantity.toFixed(8));
+      body.buyPrice = Number(explicit!.price.toFixed(6));
     } else {
       body.amount = amountValue;
     }
@@ -263,7 +299,7 @@ export function AddPositionForm({
             inputMode="decimal"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            disabled={useQtyPrice}
+            disabled={paidPriceEur !== undefined && qtyUsed !== undefined}
             className={`${inputCls} tabular-nums disabled:bg-slate-50 disabled:text-slate-400`}
             placeholder="5 000"
           />
@@ -285,6 +321,75 @@ export function AddPositionForm({
       </div>
 
       {/* Aperçu du calcul */}
+      {/* Prix payé différent du cours de clôture */}
+      {listed && stock && (
+        <div>
+          {!customPrice ? (
+            <button
+              type="button"
+              onClick={() => {
+                setCustomPrice(true);
+                setPriceCurrency(quoteCurrency ?? "EUR");
+              }}
+              className="text-[13px] text-blue-600 hover:text-blue-800"
+            >
+              {t("investments.customPriceLink")}
+            </button>
+          ) : (
+            <div>
+              <label htmlFor="pos-price" className="block text-sm font-medium text-slate-700 mb-1.5">
+                {t("investments.paidPrice")}
+              </label>
+              <div className="flex gap-2 max-w-xs">
+                <input
+                  id="pos-price"
+                  autoFocus
+                  inputMode="decimal"
+                  value={unitPrice}
+                  onChange={(e) => setUnitPrice(e.target.value)}
+                  className={`${inputCls} tabular-nums`}
+                  placeholder={nativeQuote ? String(Math.round(nativeQuote.price * 100) / 100).replace(".", ",") : ""}
+                />
+                <select
+                  value={priceCurrency}
+                  onChange={(e) => setPriceCurrency(e.target.value)}
+                  aria-label={t("investments.priceCurrency")}
+                  className="h-9 px-2 border border-slate-300 rounded-md bg-white text-sm"
+                >
+                  <option value="EUR">€</option>
+                  {quoteCurrency && <option value={quoteCurrency}>{quoteCurrency}</option>}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomPrice(false);
+                    setUnitPrice("");
+                  }}
+                  className="px-2 text-[13px] text-slate-500 hover:text-slate-800 whitespace-nowrap"
+                >
+                  {t("investments.useClose")}
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-slate-500">{t("investments.paidPriceHint")}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {listed && stock && useQtyPrice && explicit && (
+        <p className="text-[13px] text-slate-600 tabular-nums">
+          {t("investments.sharesPreviewPaid")
+            .replace("{qty}", fmtQty(explicit.quantity))
+            .replace("{price}", formatCurrency(explicit.price))}
+          {quote && (
+            <span className="text-slate-500">
+              {" "}
+              · {t("investments.closeThatDay").replace("{price}", formatCurrency(quote.price)).replace("{date}", fmtDate(quote.date))}
+            </span>
+          )}
+        </p>
+      )}
+
       {listed && stock && !useQtyPrice && (
         <p className="text-[13px] text-slate-600 tabular-nums min-h-5">
           {quoting ? (
@@ -319,19 +424,11 @@ export function AddPositionForm({
             {listed && (
               <>
                 <p className="text-xs text-slate-500">{t("investments.advancedHint")}</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="pos-qty" className="block text-xs text-slate-600 mb-1">
-                      {t("investments.quantity")}
-                    </label>
-                    <input id="pos-qty" inputMode="decimal" value={quantity} onChange={(e) => setQuantity(e.target.value)} className={`${inputCls} tabular-nums`} />
-                  </div>
-                  <div>
-                    <label htmlFor="pos-price" className="block text-xs text-slate-600 mb-1">
-                      {t("investments.unitPrice")} (€)
-                    </label>
-                    <input id="pos-price" inputMode="decimal" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} className={`${inputCls} tabular-nums`} />
-                  </div>
+                <div className="max-w-xs">
+                  <label htmlFor="pos-qty" className="block text-xs text-slate-600 mb-1">
+                    {t("investments.quantity")}
+                  </label>
+                  <input id="pos-qty" inputMode="decimal" value={quantity} onChange={(e) => setQuantity(e.target.value)} className={`${inputCls} tabular-nums`} />
                 </div>
               </>
             )}
