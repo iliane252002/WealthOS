@@ -39,9 +39,14 @@ export async function fetchDailyCloses(
     signal: AbortSignal.timeout(10000),
     cache: "no-store",
   });
+  const json = await res.json().catch(() => null);
+  // Période entièrement avant la première cotation (ex. introduction en bourse récente) :
+  // Yahoo répond 400 « Data doesn't exist », ce n'est pas une erreur, juste aucun cours.
+  if (res.status === 400 && /doesn't exist/i.test(json?.chart?.error?.description ?? "")) {
+    return { currency: "", closes: [] };
+  }
   if (!res.ok) throw new Error(`Cours indisponibles pour ${symbol} (HTTP ${res.status})`);
 
-  const json = await res.json();
   const result = json?.chart?.result?.[0];
   if (!result) throw new Error(`Symbole inconnu : ${symbol}`);
 
@@ -95,6 +100,7 @@ export async function syncSymbol(symbol: string, from: string) {
   for (const [start, end] of ranges) {
     if (start > end) continue;
     const data = await fetchDailyCloses(symbol, start, end);
+    if (data.closes.length === 0) continue;
     currency = data.currency;
     // Les cours déjà connus sont remplacés (la clôture du jour peut changer jusqu'au soir)
     await db.$transaction([

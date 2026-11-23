@@ -17,7 +17,8 @@ export async function GET(request: NextRequest) {
   }
   try {
     return NextResponse.json(await priceOnDate(symbol, date, currency));
-  } catch {
+  } catch (error) {
+    console.error(`GET /api/stocks/quote ${symbol} ${date}:`, error);
     return NextResponse.json({ error: `Cours introuvable pour ${symbol}` }, { status: 404 });
   }
 }
