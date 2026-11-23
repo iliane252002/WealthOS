@@ -272,7 +272,7 @@ export default function DashboardPage() {
           <Panel
             title={t("dashboard.latePayments")}
             action={
-              <Link href="/comptabilite" className="text-[13px] text-blue-600 hover:text-blue-800">
+              <Link href="/loyers" className="text-[13px] text-blue-600 hover:text-blue-800">
                 {t("dashboard.viewAll")}
               </Link>
             }

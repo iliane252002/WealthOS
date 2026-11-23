@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 const updateRentEventSchema = z.object({
   status: z.enum(["PENDING", "DUE", "PAID", "LATE", "PARTIALLY_PAID"]).optional(),
   paidAmount: z.number().min(0).optional(),
-  paidDate: z.string().optional(),
+  paidDate: z.string().nullable().optional(),
   notes: z.string().optional(),
 });
 

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { storedRateToEur } from "@/lib/market";
 import { effectiveValue } from "@/lib/estimation";
+import { syncRents, todayIso } from "@/lib/rents";
 
 export async function GET() {
   const session = await auth();
@@ -11,6 +12,8 @@ export async function GET() {
   }
 
   const userId = session.user.id;
+  await syncRents(userId).catch((e) => console.error("syncRents error:", e));
+  const today = todayIso();
 
   const properties = await db.property.findMany({
     where: { userId },
@@ -78,11 +81,14 @@ export async function GET() {
   );
 
   // Late payments
+  // Impayé : échéance passée, pas soldée (en retard ou partiellement payée)
+  const overdueWhere = {
+    status: { not: "PAID" },
+    dueDate: { lt: today },
+    lease: { lot: { property: { userId } } },
+  };
   const lateRentEvents = await db.rentEvent.findMany({
-    where: {
-      status: "LATE",
-      lease: { lot: { property: { userId } } },
-    },
+    where: overdueWhere,
     include: {
       lease: {
         include: {
@@ -101,12 +107,7 @@ export async function GET() {
   const vacantLots = allLots.filter((l) => l.status === "VACANT").length;
 
   // Total outstanding (unpaid late rents)
-  const allLateRents = await db.rentEvent.findMany({
-    where: {
-      status: "LATE",
-      lease: { lot: { property: { userId } } },
-    },
-  });
+  const allLateRents = (await db.rentEvent.findMany({ where: overdueWhere })).filter((re) => re.paidAmount < re.amount);
   const totalOutstanding = allLateRents.reduce((sum, re) => sum + (re.amount - re.paidAmount), 0);
 
   return NextResponse.json({

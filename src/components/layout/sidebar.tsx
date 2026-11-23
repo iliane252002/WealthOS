@@ -20,6 +20,7 @@ import {
   Percent,
   CheckSquare,
   HardHat,
+  Banknote,
 } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -35,6 +36,7 @@ type NavItem = {
   href: string;
   icon: typeof LayoutDashboard;
   module?: string;
+  badge?: "overdue";
 };
 
 type NavGroup = { labelKey?: TranslationKey; items: NavItem[] };
@@ -48,6 +50,7 @@ const navGroups: NavGroup[] = [
     items: [
       { labelKey: "nav.properties", href: "/properties", icon: Building2 },
       { labelKey: "nav.tenants", href: "/tenants", icon: Users },
+      { labelKey: "nav.rents", href: "/loyers", icon: Banknote, badge: "overdue" },
       { labelKey: "nav.documents", href: "/documents", icon: FileText },
       { labelKey: "nav.expenses", href: "/expenses", icon: Receipt, module: "EXPENSES" },
       { labelKey: "nav.works", href: "/works", icon: Wrench, module: "WORKS" },
@@ -89,6 +92,14 @@ export function Sidebar() {
     queryFn: () => fetch("/api/modules").then((r) => r.json()),
   });
 
+  // Nombre de loyers impayés, affiché à côté de « Loyers »
+  const { data: rents } = useQuery<{ totals: { overdueCount: number } }>({
+    queryKey: ["rents"],
+    queryFn: () => fetch("/api/rents").then((r) => (r.ok ? r.json() : null)),
+    staleTime: 60_000,
+  });
+  const overdueCount = rents?.totals?.overdueCount ?? 0;
+
   const isModuleActive = (mod: string) => modules.find((m) => m.module === mod)?.isActive ?? false;
 
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
@@ -110,6 +121,11 @@ export function Sidebar() {
       >
         <item.icon size={16} strokeWidth={1.75} className={active ? "text-blue-600" : "text-slate-500"} />
         {!collapsed && <span className="truncate">{t(item.labelKey)}</span>}
+        {!collapsed && item.badge === "overdue" && overdueCount > 0 && (
+          <span className="ml-auto min-w-5 h-5 px-1.5 grid place-items-center rounded-full bg-red-600 text-white text-[11px] font-medium tabular-nums">
+            {overdueCount}
+          </span>
+        )}
       </Link>
     );
   };
